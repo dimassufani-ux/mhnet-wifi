@@ -1,4 +1,4 @@
-import { Home, Users, Package, CreditCard, Settings } from "lucide-react";
+import { Home, Users, Package, CreditCard, Settings, FileSpreadsheet } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +37,11 @@ const menuItems = [
     title: "Pengaturan",
     url: "/settings",
     icon: Settings,
+  },
+  {
+    title: "Setup Spreadsheet",
+    url: "/setup",
+    icon: FileSpreadsheet,
   },
 ];
 

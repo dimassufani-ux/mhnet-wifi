@@ -1,71 +1,67 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { CustomerTable } from "@/components/customer-table";
 import { AddCustomerDialog } from "@/components/add-customer-dialog";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Customer, Package } from "@shared/schema";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
-  const mockCustomers = [
-    {
-      id: "1",
-      name: "Ahmad Hidayat",
-      phone: "081234567890",
-      address: "Jl. Merdeka No. 123, Jakarta",
-      packageName: "Premium 50 Mbps",
-      status: "active" as const,
-      installationDate: "15 Jan 2024",
-    },
-    {
-      id: "2",
-      name: "Siti Nurhaliza",
-      phone: "082345678901",
-      address: "Jl. Sudirman No. 456, Bandung",
-      packageName: "Basic 20 Mbps",
-      status: "active" as const,
-      installationDate: "20 Jan 2024",
-    },
-    {
-      id: "3",
-      name: "Budi Santoso",
-      phone: "083456789012",
-      address: "Jl. Gatot Subroto No. 789",
-      packageName: "Ultra 100 Mbps",
-      status: "suspended" as const,
-      installationDate: "10 Feb 2024",
-    },
-    {
-      id: "4",
-      name: "Dewi Lestari",
-      phone: "084567890123",
-      address: "Jl. Ahmad Yani No. 321",
-      packageName: "Premium 50 Mbps",
-      status: "active" as const,
-      installationDate: "25 Jan 2024",
-    },
-    {
-      id: "5",
-      name: "Eko Prasetyo",
-      phone: "085678901234",
-      address: "Jl. Diponegoro No. 654",
-      packageName: "Basic 20 Mbps",
-      status: "disconnected" as const,
-      installationDate: "05 Feb 2024",
-    },
-  ];
+  const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
 
-  const mockPackages = [
-    { id: "1", name: "Basic", speed: "20 Mbps", price: 150000 },
-    { id: "2", name: "Premium", speed: "50 Mbps", price: 300000 },
-    { id: "3", name: "Ultra", speed: "100 Mbps", price: 500000 },
-  ];
+  const { data: packages = [] } = useQuery<Package[]>({
+    queryKey: ["/api/packages"],
+  });
 
-  const filteredCustomers = mockCustomers.filter((customer) =>
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/customers/${id}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({
+        title: "Berhasil",
+        description: "Pelanggan berhasil dihapus",
+      });
+    },
+  });
+
+  const customersWithPackageNames = customers.map(customer => {
+    const pkg = packages.find(p => p.id === customer.packageId);
+    return {
+      ...customer,
+      packageName: pkg ? `${pkg.name} ${pkg.speed}` : "Unknown",
+      installationDate: new Date(customer.installationDate).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    };
+  });
+
+  const filteredCustomers = customersWithPackageNames.filter((customer) =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.phone.includes(searchQuery) ||
     customer.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (loadingCustomers) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold">Pelanggan</h1>
+            <p className="text-muted-foreground mt-1">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -73,12 +69,20 @@ export default function Customers() {
         <div>
           <h1 className="text-3xl font-semibold">Pelanggan</h1>
           <p className="text-muted-foreground mt-1">
-            Kelola data pelanggan WiFi
+            Kelola data pelanggan WiFi ({customers.length} pelanggan)
           </p>
         </div>
         <AddCustomerDialog
-          packages={mockPackages}
-          onSubmit={(data) => console.log("Customer submitted:", data)}
+          packages={packages}
+          onSubmit={(data) => {
+            apiRequest("/api/customers", "POST", data).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+              toast({
+                title: "Berhasil",
+                description: "Pelanggan baru berhasil ditambahkan",
+              });
+            });
+          }}
         />
       </div>
 
@@ -96,7 +100,11 @@ export default function Customers() {
       <CustomerTable
         customers={filteredCustomers}
         onEdit={(customer) => console.log("Edit customer:", customer)}
-        onDelete={(customer) => console.log("Delete customer:", customer)}
+        onDelete={(customer) => {
+          if (confirm(`Hapus pelanggan ${customer.name}?`)) {
+            deleteMutation.mutate(customer.id);
+          }
+        }}
       />
     </div>
   );

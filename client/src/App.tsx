@@ -12,6 +12,7 @@ import Customers from "@/pages/customers";
 import Packages from "@/pages/packages";
 import Payments from "@/pages/payments";
 import Settings from "@/pages/settings";
+import SetupSpreadsheet from "@/pages/setup-spreadsheet";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/packages" component={Packages} />
       <Route path="/payments" component={Payments} />
       <Route path="/settings" component={Settings} />
+      <Route path="/setup" component={SetupSpreadsheet} />
       <Route component={NotFound} />
     </Switch>
   );

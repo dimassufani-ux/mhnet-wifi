@@ -1,38 +1,56 @@
+import { useQuery } from "@tanstack/react-query";
 import { Users, Wifi, CreditCard, TrendingUp } from "lucide-react";
 import { StatsCard } from "@/components/stats-card";
 import { CustomerTable } from "@/components/customer-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Customer, Package, Payment } from "@shared/schema";
 
 export default function Dashboard() {
-  const mockCustomers = [
-    {
-      id: "1",
-      name: "Ahmad Hidayat",
-      phone: "081234567890",
-      address: "Jl. Merdeka No. 123, Jakarta",
-      packageName: "Premium 50 Mbps",
-      status: "active" as const,
-      installationDate: "15 Jan 2024",
-    },
-    {
-      id: "2",
-      name: "Siti Nurhaliza",
-      phone: "082345678901",
-      address: "Jl. Sudirman No. 456, Bandung",
-      packageName: "Basic 20 Mbps",
-      status: "active" as const,
-      installationDate: "20 Jan 2024",
-    },
-    {
-      id: "3",
-      name: "Budi Santoso",
-      phone: "083456789012",
-      address: "Jl. Gatot Subroto No. 789",
-      packageName: "Ultra 100 Mbps",
-      status: "suspended" as const,
-      installationDate: "10 Feb 2024",
-    },
-  ];
+  const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const { data: packages = [] } = useQuery<Package[]>({
+    queryKey: ["/api/packages"],
+  });
+
+  const { data: payments = [] } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+  });
+
+  const customersWithPackageNames = customers.slice(0, 5).map(customer => {
+    const pkg = packages.find(p => p.id === customer.packageId);
+    return {
+      ...customer,
+      packageName: pkg ? `${pkg.name} ${pkg.speed}` : "Unknown",
+      installationDate: new Date(customer.installationDate).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    };
+  });
+
+  const activeCustomers = customers.filter(c => c.status === "active").length;
+  const totalRevenue = payments
+    .filter(p => p.status === "paid")
+    .reduce((sum, p) => sum + p.amount, 0);
+  const pendingPayments = payments.filter(p => p.status === "pending" || p.status === "overdue").length;
+
+  const formatCurrency = (amount: number) => {
+    return `Rp ${(amount / 1000000).toFixed(1)} Jt`;
+  };
+
+  if (loadingCustomers) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -46,31 +64,27 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Pelanggan"
-          value="150"
+          value={customers.length.toString()}
           icon={Users}
-          description="Pelanggan aktif"
-          trend={{ value: "12%", positive: true }}
+          description="Pelanggan terdaftar"
         />
         <StatsCard
           title="Koneksi Aktif"
-          value="142"
+          value={activeCustomers.toString()}
           icon={Wifi}
           description="Sedang online"
-          trend={{ value: "5%", positive: true }}
         />
         <StatsCard
           title="Pendapatan Bulan Ini"
-          value="Rp 45,5 Jt"
+          value={formatCurrency(totalRevenue)}
           icon={TrendingUp}
-          description="Target 90% tercapai"
-          trend={{ value: "8%", positive: true }}
+          description={`Dari ${payments.length} transaksi`}
         />
         <StatsCard
           title="Pembayaran Pending"
-          value="8"
+          value={pendingPayments.toString()}
           icon={CreditCard}
           description="Perlu ditindaklanjuti"
-          trend={{ value: "2", positive: false }}
         />
       </div>
 
@@ -79,11 +93,17 @@ export default function Dashboard() {
           <CardTitle>Pelanggan Terbaru</CardTitle>
         </CardHeader>
         <CardContent>
-          <CustomerTable
-            customers={mockCustomers}
-            onEdit={(customer) => console.log("Edit customer:", customer)}
-            onDelete={(customer) => console.log("Delete customer:", customer)}
-          />
+          {customersWithPackageNames.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Belum ada pelanggan. Tambahkan pelanggan pertama Anda.
+            </p>
+          ) : (
+            <CustomerTable
+              customers={customersWithPackageNames}
+              onEdit={(customer) => console.log("Edit customer:", customer)}
+              onDelete={(customer) => console.log("Delete customer:", customer)}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,66 +1,65 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PaymentTable } from "@/components/payment-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { StatsCard } from "@/components/stats-card";
 import { CreditCard, TrendingUp, AlertCircle } from "lucide-react";
+import type { Payment, Customer } from "@shared/schema";
 
 export default function Payments() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const mockPayments = [
-    {
-      id: "1",
-      customerName: "Ahmad Hidayat",
-      amount: 300000,
-      paymentDate: "15 Feb 2024",
-      status: "paid" as const,
-      method: "Transfer Bank",
-      month: "Februari 2024",
-    },
-    {
-      id: "2",
-      customerName: "Siti Nurhaliza",
-      amount: 150000,
-      paymentDate: "10 Feb 2024",
-      status: "paid" as const,
-      method: "Tunai",
-      month: "Februari 2024",
-    },
-    {
-      id: "3",
-      customerName: "Budi Santoso",
-      amount: 500000,
-      paymentDate: "-",
-      status: "pending" as const,
-      method: "-",
-      month: "Februari 2024",
-    },
-    {
-      id: "4",
-      customerName: "Dewi Lestari",
-      amount: 300000,
-      paymentDate: "-",
-      status: "overdue" as const,
-      method: "-",
-      month: "Januari 2024",
-    },
-    {
-      id: "5",
-      customerName: "Eko Prasetyo",
-      amount: 150000,
-      paymentDate: "18 Feb 2024",
-      status: "paid" as const,
-      method: "Transfer Bank",
-      month: "Februari 2024",
-    },
-  ];
+  const { data: payments = [], isLoading } = useQuery<Payment[]>({
+    queryKey: ["/api/payments"],
+  });
 
-  const filteredPayments = mockPayments.filter((payment) =>
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const paymentsWithCustomerNames = payments.map(payment => {
+    const customer = customers.find(c => c.id === payment.customerId);
+    return {
+      ...payment,
+      customerName: customer?.name || "Unknown",
+      paymentDate: new Date(payment.paymentDate).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    };
+  });
+
+  const filteredPayments = paymentsWithCustomerNames.filter((payment) =>
     payment.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     payment.month.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalRevenue = payments
+    .filter(p => p.status === "paid")
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const paidCount = payments.filter(p => p.status === "paid").length;
+  const overdueCount = payments.filter(p => p.status === "overdue").length;
+
+  const formatCurrency = (amount: number) => {
+    return `Rp ${(amount / 1000000).toFixed(1)} Jt`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold">Pembayaran</h1>
+            <p className="text-muted-foreground mt-1">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -80,19 +79,19 @@ export default function Payments() {
       <div className="grid gap-4 md:grid-cols-3">
         <StatsCard
           title="Total Pendapatan"
-          value="Rp 45,5 Jt"
+          value={formatCurrency(totalRevenue)}
           icon={TrendingUp}
           description="Bulan ini"
         />
         <StatsCard
           title="Pembayaran Lunas"
-          value="142"
+          value={paidCount.toString()}
           icon={CreditCard}
-          description="Dari 150 pelanggan"
+          description={`Dari ${payments.length} pembayaran`}
         />
         <StatsCard
           title="Terlambat"
-          value="8"
+          value={overdueCount.toString()}
           icon={AlertCircle}
           description="Perlu ditindaklanjuti"
         />
