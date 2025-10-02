@@ -45,7 +45,6 @@ export class CustomSheetStorage implements IStorage {
     }
     return new Date();
   }
-  }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
     const customers = await this.getAllCustomers();
