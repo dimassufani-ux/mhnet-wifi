@@ -14,9 +14,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ["Pelanggan", "Paket", "Pembayaran"]
       );
       
-      if (storage instanceof GoogleSheetStorage) {
-        await storage.ensureHeaders();
-      }
+      const tempStorage = new GoogleSheetStorage(spreadsheet.spreadsheetId);
+      await tempStorage.ensureHeaders();
 
       res.json({
         success: true,

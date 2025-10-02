@@ -7,7 +7,7 @@ import {
   type InsertPayment
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { readSheet, writeSheet, appendSheet, createSpreadsheet } from "./google-sheets";
+import { readSheet, writeSheet, appendSheet, createSpreadsheet, clearRange, deleteRows } from "./google-sheets";
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || "";
 
@@ -145,7 +145,9 @@ export class GoogleSheetStorage {
       packageId: insertCustomer.packageId,
       status: insertCustomer.status || "active",
       createdAt: new Date(),
-      installationDate: insertCustomer.installationDate || new Date()
+      installationDate: insertCustomer.installationDate 
+        ? new Date(insertCustomer.installationDate) 
+        : new Date()
     };
 
     await appendSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A:H`, [customerToRow(customer)]);
@@ -158,7 +160,12 @@ export class GoogleSheetStorage {
     
     if (index === -1) return undefined;
 
-    const updated = { ...customers[index], ...updates };
+    const normalizedUpdates: any = { ...updates };
+    if (updates.installationDate) {
+      normalizedUpdates.installationDate = new Date(updates.installationDate);
+    }
+
+    const updated = { ...customers[index], ...normalizedUpdates };
     const rowNumber = index + 2;
     
     await writeSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A${rowNumber}:H${rowNumber}`, [customerToRow(updated)]);
@@ -166,7 +173,21 @@ export class GoogleSheetStorage {
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
-    return true;
+    try {
+      const customers = await this.getAllCustomers();
+      const index = customers.findIndex(c => c.id === id);
+      
+      if (index === -1) return false;
+
+      const startIndex = index + 1;
+      const endIndex = startIndex + 1;
+      await deleteRows(this.spreadsheetId, CUSTOMERS_SHEET, startIndex, endIndex);
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      return false;
+    }
   }
 
   async getAllPackages(): Promise<Package[]> {
@@ -207,7 +228,21 @@ export class GoogleSheetStorage {
   }
 
   async deletePackage(id: string): Promise<boolean> {
-    return true;
+    try {
+      const packages = await this.getAllPackages();
+      const index = packages.findIndex(p => p.id === id);
+      
+      if (index === -1) return false;
+
+      const startIndex = index + 1;
+      const endIndex = startIndex + 1;
+      await deleteRows(this.spreadsheetId, PACKAGES_SHEET, startIndex, endIndex);
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting package:", error);
+      return false;
+    }
   }
 
   async getAllPayments(): Promise<Payment[]> {
@@ -226,7 +261,9 @@ export class GoogleSheetStorage {
       id,
       customerId: insertPayment.customerId,
       amount: insertPayment.amount,
-      paymentDate: insertPayment.paymentDate || new Date(),
+      paymentDate: insertPayment.paymentDate 
+        ? new Date(insertPayment.paymentDate)
+        : new Date(),
       status: insertPayment.status || "pending",
       method: insertPayment.method,
       month: insertPayment.month
@@ -242,7 +279,12 @@ export class GoogleSheetStorage {
     
     if (index === -1) return undefined;
 
-    const updated = { ...payments[index], ...updates };
+    const normalizedUpdates: any = { ...updates };
+    if (updates.paymentDate) {
+      normalizedUpdates.paymentDate = new Date(updates.paymentDate);
+    }
+
+    const updated = { ...payments[index], ...normalizedUpdates };
     const rowNumber = index + 2;
     
     await writeSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A${rowNumber}:G${rowNumber}`, [paymentToRow(updated)]);
@@ -250,6 +292,20 @@ export class GoogleSheetStorage {
   }
 
   async deletePayment(id: string): Promise<boolean> {
-    return true;
+    try {
+      const payments = await this.getAllPayments();
+      const index = payments.findIndex(p => p.id === id);
+      
+      if (index === -1) return false;
+
+      const startIndex = index + 1;
+      const endIndex = startIndex + 1;
+      await deleteRows(this.spreadsheetId, PAYMENTS_SHEET, startIndex, endIndex);
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      return false;
+    }
   }
 }
