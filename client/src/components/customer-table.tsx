@@ -24,7 +24,7 @@ interface Customer {
   phone: string;
   address: string;
   packageName: string;
-  status: "active" | "suspended" | "disconnected";
+  status: string;
   installationDate: string;
 }
 
@@ -76,11 +76,11 @@ export function CustomerTable({ customers, onEdit, onDelete }: CustomerTableProp
         <TableHeader>
           <TableRow>
             <TableHead>Pelanggan</TableHead>
-            <TableHead>Telepon</TableHead>
-            <TableHead>Alamat</TableHead>
-            <TableHead>Paket</TableHead>
+            <TableHead className="hidden md:table-cell">Telepon</TableHead>
+            <TableHead className="hidden lg:table-cell">Alamat</TableHead>
+            <TableHead className="hidden sm:table-cell">Paket</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Tgl Instalasi</TableHead>
+            <TableHead className="hidden md:table-cell">Tgl Instalasi</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -95,24 +95,29 @@ export function CustomerTable({ customers, onEdit, onDelete }: CustomerTableProp
             customers.map((customer) => (
               <TableRow key={customer.id} data-testid={`row-customer-${customer.id}`}>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(customer.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{customer.name}</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {getInitials(customer.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{customer.name}</span>
+                    </div>
+                    <div className="md:hidden text-xs text-muted-foreground">
+                      {customer.phone}
+                    </div>
                   </div>
                 </TableCell>
-                <TableCell className="font-mono text-sm">{customer.phone}</TableCell>
-                <TableCell className="max-w-[200px] truncate">{customer.address}</TableCell>
-                <TableCell>{customer.packageName}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono text-sm">{customer.phone}</TableCell>
+                <TableCell className="hidden lg:table-cell max-w-[200px] truncate">{customer.address}</TableCell>
+                <TableCell className="hidden sm:table-cell">{customer.packageName}</TableCell>
                 <TableCell>
                   <Badge className={getStatusColor(customer.status)} data-testid={`badge-status-${customer.id}`}>
                     {getStatusText(customer.status)}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{customer.installationDate}</TableCell>
+                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{customer.installationDate}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

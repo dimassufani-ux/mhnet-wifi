@@ -145,9 +145,13 @@ export class MemStorage implements IStorage {
 }
 
 import { GoogleSheetStorage } from "./sheets-storage";
+import { CustomSheetStorage } from "./custom-sheets-storage";
+import { DbStorage } from "./db-storage";
 
-const USE_GOOGLE_SHEETS = process.env.SPREADSHEET_ID ? true : false;
+const USE_GOOGLE_SHEETS = process.env.SPREADSHEET_ID_PSB && process.env.SPREADSHEET_ID_PAYMENT;
 
 export const storage = USE_GOOGLE_SHEETS 
-  ? new GoogleSheetStorage(process.env.SPREADSHEET_ID)
+  ? new CustomSheetStorage(process.env.SPREADSHEET_ID_PSB, process.env.SPREADSHEET_ID_PAYMENT)
   : new MemStorage();
+
+console.log("Storage:", USE_GOOGLE_SHEETS ? "Google Sheets" : "Memory");

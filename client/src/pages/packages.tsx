@@ -1,16 +1,40 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { PackageCard } from "@/components/package-card";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { EditPackageDialog } from "@/components/edit-package-dialog";
+import { AddPackageDialog } from "@/components/add-package-dialog";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Package, Customer } from "@shared/schema";
 
 export default function Packages() {
+  const [editingPackage, setEditingPackage] = useState<Package | null>(null);
+  const { toast } = useToast();
+  
   const { data: packages = [], isLoading } = useQuery<Package[]>({
     queryKey: ["/api/packages"],
+    refetchInterval: 30000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => apiRequest("/api/packages", "POST", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      toast({ title: "Berhasil", description: "Paket berhasil ditambahkan" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest(`/api/packages/${id}`, "PUT", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      toast({ title: "Berhasil", description: "Paket berhasil diupdate" });
+    },
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
+    refetchInterval: 30000,
   });
 
   const packagesWithCount = packages.map(pkg => ({
@@ -40,10 +64,7 @@ export default function Packages() {
             Kelola paket internet yang tersedia ({packages.length} paket)
           </p>
         </div>
-        <Button data-testid="button-add-package">
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Paket
-        </Button>
+        <AddPackageDialog onSubmit={(data) => createMutation.mutate(data)} />
       </div>
 
       {packagesWithCount.length === 0 ? (
@@ -60,10 +81,24 @@ export default function Packages() {
               price={pkg.price}
               description={pkg.description || undefined}
               customerCount={pkg.customerCount}
-              onEdit={() => console.log("Edit package:", pkg.name)}
+              onEdit={() => setEditingPackage(packages.find(p => p.id === pkg.id) || null)}
             />
           ))}
         </div>
+      )}
+
+      {packages.length > 0 && (
+        <EditPackageDialog
+          package={editingPackage || packages[0]}
+          open={!!editingPackage}
+          onOpenChange={(open) => !open && setEditingPackage(null)}
+          onSubmit={(data) => {
+            if (editingPackage) {
+              updateMutation.mutate({ id: editingPackage.id, data });
+              setEditingPackage(null);
+            }
+          }}
+        />
       )}
     </div>
   );

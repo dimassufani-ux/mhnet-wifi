@@ -1,50 +1,53 @@
 import { google } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
 
-let connectionSettings: any;
+const CREDENTIALS_PATH = path.join(process.cwd(), 'google-credentials.json');
 
-async function getAccessToken() {
-  if (connectionSettings && connectionSettings.settings.expires_at && new Date(connectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return connectionSettings.settings.access_token;
+export async function getGoogleSheetClient() {
+  // Try environment variable first (for Vercel/Railway)
+  if (process.env.GOOGLE_CREDENTIALS) {
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    return google.sheets({ version: 'v4', auth });
   }
-  
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
+
+  // Try service account file (for local)
+  if (fs.existsSync(CREDENTIALS_PATH)) {
+    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    return google.sheets({ version: 'v4', auth });
+  }
+
+  // Fallback to Replit connector
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
     : process.env.WEB_REPL_RENEWAL 
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-  }
+  if (xReplitToken && hostname) {
+    const connectionSettings = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-sheet',
+      { headers: { 'Accept': 'application/json', 'X_REPLIT_TOKEN': xReplitToken } }
+    ).then(res => res.json()).then(data => data.items?.[0]);
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-sheet',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
+    const accessToken = connectionSettings?.settings?.access_token;
+    if (accessToken) {
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({ access_token: accessToken });
+      return google.sheets({ version: 'v4', auth: oauth2Client });
     }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  const accessToken = connectionSettings?.settings?.access_token || connectionSettings.settings?.oauth?.credentials?.access_token;
-
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Google Sheet not connected');
   }
-  return accessToken;
-}
 
-export async function getGoogleSheetClient() {
-  const accessToken = await getAccessToken();
-
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({
-    access_token: accessToken
-  });
-
-  return google.sheets({ version: 'v4', auth: oauth2Client });
+  throw new Error('Google Sheets credentials not found. Please setup google-credentials.json');
 }
 
 export async function readSheet(spreadsheetId: string, range: string) {

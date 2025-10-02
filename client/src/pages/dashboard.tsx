@@ -1,21 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { Users, Wifi, CreditCard, TrendingUp } from "lucide-react";
+import { Users, Wifi, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
 import { StatsCard } from "@/components/stats-card";
 import { CustomerTable } from "@/components/customer-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { checkOverduePayments } from "@/lib/notifications";
 import type { Customer, Package, Payment } from "@shared/schema";
 
 export default function Dashboard() {
   const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
+    refetchInterval: 30000, // Auto refresh setiap 30 detik
   });
 
   const { data: packages = [] } = useQuery<Package[]>({
     queryKey: ["/api/packages"],
+    refetchInterval: 30000,
   });
 
   const { data: payments = [] } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
+    refetchInterval: 30000,
   });
 
   const customersWithPackageNames = customers.slice(0, 5).map(customer => {
@@ -41,6 +46,8 @@ export default function Dashboard() {
     return `Rp ${(amount / 1000000).toFixed(1)} Jt`;
   };
 
+  const overduePayments = checkOverduePayments(payments, customers);
+
   if (loadingCustomers) {
     return (
       <div className="space-y-6">
@@ -60,6 +67,16 @@ export default function Dashboard() {
           Ringkasan data pelanggan dan pembayaran
         </p>
       </div>
+
+      {overduePayments.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Pembayaran Terlambat</AlertTitle>
+          <AlertDescription>
+            Ada {overduePayments.length} pembayaran yang terlambat. Segera tindak lanjuti.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
