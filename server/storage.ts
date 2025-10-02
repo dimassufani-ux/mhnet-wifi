@@ -144,4 +144,10 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { GoogleSheetStorage } from "./sheets-storage";
+
+const USE_GOOGLE_SHEETS = process.env.SPREADSHEET_ID ? true : false;
+
+export const storage = USE_GOOGLE_SHEETS 
+  ? new GoogleSheetStorage(process.env.SPREADSHEET_ID)
+  : new MemStorage();
