@@ -15,13 +15,13 @@ const MONTHS = [
 export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
 
-  const { data: customers = [], isLoading } = useQuery<Customer[]>({
+  const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
     queryKey: ["/api/customers", selectedMonth],
     queryFn: () => apiRequest(`/api/customers?month=${selectedMonth}`, "GET"),
     refetchInterval: 30000,
   });
 
-  const { data: psbList = [] } = useQuery<PSB[]>({
+  const { data: psbList = [], isLoading: loadingPSB } = useQuery<PSB[]>({
     queryKey: ["/api/psb", selectedMonth],
     queryFn: () => apiRequest(`/api/psb?month=${selectedMonth}`, "GET"),
     refetchInterval: 30000,
@@ -30,7 +30,7 @@ export default function Dashboard() {
   const lunas = customers.filter(c => c.paymentStatus === "Lunas").length;
   const belumLunas = customers.filter(c => c.paymentStatus === "Belum Lunas").length;
 
-  return isLoading ? (
+  return (loadingCustomers || loadingPSB) ? (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">Dashboard</h1>
