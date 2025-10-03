@@ -5,20 +5,20 @@ import type { IStorage } from "./storage";
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID_PAYMENT || "";
 const PSB_SPREADSHEET_ID = process.env.SPREADSHEET_ID_PSB || "";
-const CURRENT_MONTH_SHEET = process.env.CURRENT_MONTH_SHEET || "JANUARI";
-const PSB_SHEET_NAME = process.env.PSB_SHEET_NAME || "PSB";
 
 export class CustomSheetStorage implements IStorage {
   private sheetId: string;
   private psbSheetId: string;
-  private monthSheet: string;
-  private psbSheet: string;
+  public currentMonth: string;
 
-  constructor(sheetId?: string) {
+  constructor(sheetId?: string, month?: string) {
     this.sheetId = sheetId || SPREADSHEET_ID;
     this.psbSheetId = PSB_SPREADSHEET_ID;
-    this.monthSheet = CURRENT_MONTH_SHEET;
-    this.psbSheet = PSB_SHEET_NAME;
+    this.currentMonth = month || new Date().toLocaleDateString('id-ID', { month: 'long' }).toUpperCase();
+  }
+
+  setMonth(month: string) {
+    this.currentMonth = month;
   }
 
   // ===== CUSTOMERS (Sheet "Pelanggan") =====
@@ -26,7 +26,7 @@ export class CustomSheetStorage implements IStorage {
   
   async getAllCustomers(): Promise<Customer[]> {
     try {
-      const data = await readSheet(this.sheetId, `${this.monthSheet}!A2:C`);
+      const data = await readSheet(this.sheetId, `${this.currentMonth}!A2:C`);
       
       return data.map((row, index) => ({
         id: `customer-${index + 1}`,
@@ -58,7 +58,7 @@ export class CustomSheetStorage implements IStorage {
         data.nickname || ""
       ];
       
-      await appendSheet(this.sheetId, `${this.monthSheet}!A:C`, [row]);
+      await appendSheet(this.sheetId, `${this.currentMonth}!A:C`, [row]);
       
       const customers = await this.getAllCustomers();
       return customers[customers.length - 1];
@@ -84,7 +84,7 @@ export class CustomSheetStorage implements IStorage {
         updated.nickname || ""
       ];
       
-      await writeSheet(this.sheetId, `${this.monthSheet}!A${rowNumber}:C${rowNumber}`, [row]);
+      await writeSheet(this.sheetId, `${this.currentMonth}!A${rowNumber}:C${rowNumber}`, [row]);
       return updated;
     } catch (error) {
       console.error("Error updating customer:", error);
@@ -101,7 +101,7 @@ export class CustomSheetStorage implements IStorage {
 
       const startIndex = index + 1;
       const endIndex = startIndex + 1;
-      await deleteRows(this.sheetId, this.monthSheet, startIndex, endIndex);
+      await deleteRows(this.sheetId, this.currentMonth, startIndex, endIndex);
       
       return true;
     } catch (error) {
@@ -120,7 +120,7 @@ export class CustomSheetStorage implements IStorage {
         return [];
       }
       
-      const data = await readSheet(this.psbSheetId, `${this.psbSheet}!A2:C`);
+      const data = await readSheet(this.psbSheetId, `${this.currentMonth}!A2:C`);
       
       return data.map((row, index) => ({
         id: `psb-${index + 1}`,
@@ -159,7 +159,7 @@ export class CustomSheetStorage implements IStorage {
         dateStr
       ];
       
-      await appendSheet(this.psbSheetId, `${this.psbSheet}!A:C`, [row]);
+      await appendSheet(this.psbSheetId, `${this.currentMonth}!A:C`, [row]);
       
       const psbList = await this.getAllPSB();
       return psbList[psbList.length - 1];
@@ -187,7 +187,7 @@ export class CustomSheetStorage implements IStorage {
         this.formatDate(updated.joinDate)
       ];
       
-      await writeSheet(this.psbSheetId, `${this.psbSheet}!A${rowNumber}:C${rowNumber}`, [row]);
+      await writeSheet(this.psbSheetId, `${this.currentMonth}!A${rowNumber}:C${rowNumber}`, [row]);
       return updated;
     } catch (error) {
       console.error("Error updating PSB:", error);
@@ -206,7 +206,7 @@ export class CustomSheetStorage implements IStorage {
 
       const startIndex = index + 1;
       const endIndex = startIndex + 1;
-      await deleteRows(this.psbSheetId, this.psbSheet, startIndex, endIndex);
+      await deleteRows(this.psbSheetId, this.currentMonth, startIndex, endIndex);
       
       return true;
     } catch (error) {

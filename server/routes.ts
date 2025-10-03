@@ -86,6 +86,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/customers", requireAuth, async (req, res) => {
     try {
+      const month = req.query.month as string;
+      if (month && 'setMonth' in storage) {
+        (storage as any).setMonth(month);
+      }
       const customers = await storage.getAllCustomers();
       res.json(customers);
     } catch (error: any) {
@@ -96,7 +100,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/psb", requireAuth, async (req, res) => {
     try {
-      // PSB only available in CustomSheetStorage
+      const month = req.query.month as string;
+      if (month && 'setMonth' in storage) {
+        (storage as any).setMonth(month);
+      }
       if ('getAllPSB' in storage) {
         const psbList = await (storage as any).getAllPSB();
         res.json(psbList);

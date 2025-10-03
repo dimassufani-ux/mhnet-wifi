@@ -4,21 +4,29 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { PSB } from "@shared/schema";
 
+const MONTHS = [
+  "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI",
+  "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"
+];
+
 export default function PSBPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [formData, setFormData] = useState({ name: "", phone: "", joinDate: "" });
   const { toast } = useToast();
   const itemsPerPage = 10;
 
   const { data: psbList = [], isLoading } = useQuery<PSB[]>({
-    queryKey: ["/api/psb"],
+    queryKey: ["/api/psb", selectedMonth],
+    queryFn: () => apiRequest(`/api/psb?month=${selectedMonth}`, "GET"),
     refetchInterval: 30000,
   });
 
@@ -74,10 +82,24 @@ export default function PSBPage() {
             Daftar calon pelanggan baru ({psbList.length} calon pelanggan)
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah PSB
-        </Button>
+        <div className="flex gap-2">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((month) => (
+                <SelectItem key={month} value={month}>
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah PSB
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
