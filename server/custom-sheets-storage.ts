@@ -26,7 +26,7 @@ export class CustomSheetStorage implements IStorage {
   
   async getAllCustomers(): Promise<Customer[]> {
     try {
-      const data = await readSheet(this.sheetId, `${this.currentMonth}!A2:C`);
+      const data = await readSheet(this.sheetId, `${this.currentMonth}!B2:D`);
       
       return data.map((row, index) => ({
         id: `customer-${index + 1}`,
@@ -52,16 +52,20 @@ export class CustomSheetStorage implements IStorage {
 
   async createCustomer(data: InsertCustomer): Promise<Customer> {
     try {
+      const customers = await this.getAllCustomers();
+      const nextNumber = customers.length + 1;
+      
       const row = [
+        nextNumber,
         data.paymentStatus || "Belum Lunas",
         data.name,
         data.nickname || ""
       ];
       
-      await appendSheet(this.sheetId, `${this.currentMonth}!A:C`, [row]);
+      await appendSheet(this.sheetId, `${this.currentMonth}!A:D`, [row]);
       
-      const customers = await this.getAllCustomers();
-      return customers[customers.length - 1];
+      const updatedCustomers = await this.getAllCustomers();
+      return updatedCustomers[updatedCustomers.length - 1];
     } catch (error) {
       console.error("Error creating customer:", error);
       throw new Error('Failed to create customer');
@@ -79,12 +83,13 @@ export class CustomSheetStorage implements IStorage {
       const rowNumber = index + 2;
       
       const row = [
+        index + 1,
         updated.paymentStatus,
         updated.name,
         updated.nickname || ""
       ];
       
-      await writeSheet(this.sheetId, `${this.currentMonth}!A${rowNumber}:C${rowNumber}`, [row]);
+      await writeSheet(this.sheetId, `${this.currentMonth}!A${rowNumber}:D${rowNumber}`, [row]);
       return updated;
     } catch (error) {
       console.error("Error updating customer:", error);
@@ -120,7 +125,7 @@ export class CustomSheetStorage implements IStorage {
         return [];
       }
       
-      const data = await readSheet(this.psbSheetId, `${this.currentMonth}!A2:C`);
+      const data = await readSheet(this.psbSheetId, `${this.currentMonth}!B2:D`);
       
       return data.map((row, index) => ({
         id: `psb-${index + 1}`,
@@ -150,19 +155,22 @@ export class CustomSheetStorage implements IStorage {
         throw new Error("PSB Spreadsheet ID not configured");
       }
 
+      const psbList = await this.getAllPSB();
+      const nextNumber = psbList.length + 1;
       const joinDate = data.joinDate || new Date();
       const dateStr = this.formatDate(joinDate);
       
       const row = [
+        nextNumber,
         data.name,
         data.phone,
         dateStr
       ];
       
-      await appendSheet(this.psbSheetId, `${this.currentMonth}!A:C`, [row]);
+      await appendSheet(this.psbSheetId, `${this.currentMonth}!A:D`, [row]);
       
-      const psbList = await this.getAllPSB();
-      return psbList[psbList.length - 1];
+      const updatedPsbList = await this.getAllPSB();
+      return updatedPsbList[updatedPsbList.length - 1];
     } catch (error) {
       console.error("Error creating PSB:", error);
       throw new Error('Failed to create PSB');
@@ -182,12 +190,13 @@ export class CustomSheetStorage implements IStorage {
       const rowNumber = index + 2;
       
       const row = [
+        index + 1,
         updated.name,
         updated.phone,
         this.formatDate(updated.joinDate)
       ];
       
-      await writeSheet(this.psbSheetId, `${this.currentMonth}!A${rowNumber}:C${rowNumber}`, [row]);
+      await writeSheet(this.psbSheetId, `${this.currentMonth}!A${rowNumber}:D${rowNumber}`, [row]);
       return updated;
     } catch (error) {
       console.error("Error updating PSB:", error);

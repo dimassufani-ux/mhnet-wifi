@@ -62,16 +62,7 @@ export default function PSBPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">PSB (Pemasangan Baru)</h1>
-          <p className="text-muted-foreground mt-1">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="space-y-6"><div><h1 className="text-3xl font-semibold">PSB (Pemasangan Baru)</h1><p className="text-muted-foreground mt-1">Loading...</p></div></div>;
 
   return (
     <div className="space-y-6">

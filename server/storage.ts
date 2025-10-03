@@ -1,8 +1,6 @@
 import { 
   type Customer, 
   type InsertCustomer,
-  type Package,
-  type InsertPackage,
   type Payment,
   type InsertPayment
 } from "@shared/schema";

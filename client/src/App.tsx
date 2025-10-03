@@ -22,14 +22,8 @@ import NotFound from "@/pages/not-found";
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
   
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
-  
-  if (!user) {
-    return <Redirect to="/login" />;
-  }
-  
+  if (isLoading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  if (!user) return <Redirect to="/login" />;
   return <Component />;
 }
 
@@ -53,17 +47,11 @@ function Router() {
 
 function AppContent() {
   const { user } = useAuth();
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  };
 
-  if (!user) {
-    return <Router />;
-  }
+  if (!user) return <Router />;
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <SidebarProvider style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "3rem" } as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
