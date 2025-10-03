@@ -1,95 +1,62 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { Users, Wifi, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, CheckCircle, XCircle, UserPlus } from "lucide-react";
 import { StatsCard } from "@/components/stats-card";
-import { CustomerTable } from "@/components/customer-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { checkOverduePayments } from "@/lib/notifications";
-import type { Customer, Package, Payment } from "@shared/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+import type { Customer, PSB } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+
+const MONTHS = [
+  "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI",
+  "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"
+];
 
 export default function Dashboard() {
-  const { data: customers = [], isLoading: loadingCustomers, error: customersError } = useQuery<Customer[]>({
-    queryKey: ["/api/customers"],
-    refetchInterval: 30000, // Auto refresh setiap 30 detik
-  });
+  const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
 
-  const { data: packages = [], error: packagesError } = useQuery<Package[]>({
-    queryKey: ["/api/packages"],
+  const { data: customers = [], isLoading } = useQuery<Customer[]>({
+    queryKey: ["/api/customers", selectedMonth],
+    queryFn: () => apiRequest(`/api/customers?month=${selectedMonth}`, "GET"),
     refetchInterval: 30000,
   });
 
-  const { data: payments = [], error: paymentsError } = useQuery<Payment[]>({
-    queryKey: ["/api/payments"],
+  const { data: psbList = [] } = useQuery<PSB[]>({
+    queryKey: ["/api/psb", selectedMonth],
+    queryFn: () => apiRequest(`/api/psb?month=${selectedMonth}`, "GET"),
     refetchInterval: 30000,
   });
 
-  if (customersError || packagesError || paymentsError) {
-    return (
-      <div className="space-y-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Gagal memuat data. Silakan refresh halaman.</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const lunas = customers.filter(c => c.paymentStatus === "Lunas").length;
+  const belumLunas = customers.filter(c => c.paymentStatus === "Belum Lunas").length;
 
-  const customersWithPackageNames = useMemo(() => customers.slice(0, 5).map(customer => {
-    const pkg = packages.find(p => p.id === customer.packageId);
-    return {
-      ...customer,
-      packageName: pkg ? `${pkg.name} ${pkg.speed}` : "Unknown",
-      installationDate: new Date(customer.installationDate).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    };
-  }), [customers, packages]);
-
-  const activeCustomers = customers.filter(c => c.status === "active").length;
-  const totalRevenue = payments
-    .filter(p => p.status === "paid")
-    .reduce((sum, p) => sum + p.amount, 0);
-  const pendingPayments = payments.filter(p => p.status === "pending" || p.status === "overdue").length;
-
-  const formatCurrency = (amount: number) => {
-    return `Rp ${(amount / 1000000).toFixed(1)} Jt`;
-  };
-
-  const overduePayments = checkOverduePayments(payments, customers);
-
-  if (loadingCustomers) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+  return isLoading ? (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Ringkasan data pelanggan dan pembayaran
-        </p>
+        <p className="text-muted-foreground mt-1">Loading...</p>
       </div>
-
-      {overduePayments.length > 0 && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Pembayaran Terlambat</AlertTitle>
-          <AlertDescription>
-            Ada {overduePayments.length} pembayaran yang terlambat. Segera tindak lanjuti.
-          </AlertDescription>
-        </Alert>
-      )}
+    </div>
+  ) : (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Ringkasan data pelanggan WiFi</p>
+        </div>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((month) => (
+              <SelectItem key={month} value={month}>
+                {month}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
@@ -99,22 +66,22 @@ export default function Dashboard() {
           description="Pelanggan terdaftar"
         />
         <StatsCard
-          title="Koneksi Aktif"
-          value={activeCustomers.toString()}
-          icon={Wifi}
-          description="Sedang online"
+          title="Sudah Lunas"
+          value={lunas.toString()}
+          icon={CheckCircle}
+          description="Pembayaran lunas"
         />
         <StatsCard
-          title="Pendapatan Bulan Ini"
-          value={formatCurrency(totalRevenue)}
-          icon={TrendingUp}
-          description={`Dari ${payments.length} transaksi`}
-        />
-        <StatsCard
-          title="Pembayaran Pending"
-          value={pendingPayments.toString()}
-          icon={CreditCard}
+          title="Belum Lunas"
+          value={belumLunas.toString()}
+          icon={XCircle}
           description="Perlu ditindaklanjuti"
+        />
+        <StatsCard
+          title="Calon Pelanggan (PSB)"
+          value={psbList.length.toString()}
+          icon={UserPlus}
+          description="Pemasangan baru"
         />
       </div>
 
@@ -123,16 +90,39 @@ export default function Dashboard() {
           <CardTitle>Pelanggan Terbaru</CardTitle>
         </CardHeader>
         <CardContent>
-          {customersWithPackageNames.length === 0 ? (
+          {customers.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Belum ada pelanggan. Tambahkan pelanggan pertama Anda.
+              Belum ada pelanggan untuk bulan {selectedMonth}
             </p>
           ) : (
-            <CustomerTable
-              customers={customersWithPackageNames}
-              onEdit={() => {}}
-              onDelete={() => {}}
-            />
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="p-4 text-left font-medium">Status</th>
+                    <th className="p-4 text-left font-medium">Nama</th>
+                    <th className="p-4 text-left font-medium">Nama Panggilan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.slice(0, 5).map((customer) => (
+                    <tr key={customer.id} className="border-b">
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          customer.paymentStatus === "Lunas" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {customer.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="p-4">{customer.name}</td>
+                      <td className="p-4 text-muted-foreground">{customer.nickname || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
