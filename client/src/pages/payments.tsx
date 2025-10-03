@@ -32,6 +32,9 @@ export default function Payments() {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       toast({ title: "Berhasil", description: "Pembayaran berhasil dicatat" });
     },
+    onError: (error) => {
+      toast({ title: "Error", description: "Gagal mencatat pembayaran", variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
@@ -40,6 +43,9 @@ export default function Payments() {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       toast({ title: "Berhasil", description: "Pembayaran berhasil diupdate" });
     },
+    onError: (error) => {
+      toast({ title: "Error", description: "Gagal mengupdate pembayaran", variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -47,6 +53,9 @@ export default function Payments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
       toast({ title: "Berhasil", description: "Pembayaran berhasil dihapus" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Gagal menghapus pembayaran", variant: "destructive" });
     },
   });
 

@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getCustomer(id: string): Promise<Customer | undefined>;
   getAllCustomers(): Promise<Customer[]>;
+  getAllPSB(): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
@@ -47,6 +48,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.customers.values());
   }
 
+  async getAllPSB(): Promise<Customer[]> {
+    return Array.from(this.customers.values());
+  }
+
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const id = randomUUID();
     const customer: Customer = { 
@@ -64,11 +69,15 @@ export class MemStorage implements IStorage {
   }
 
   async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const customer = this.customers.get(id);
-    if (!customer) return undefined;
-    const updated = { ...customer, ...updates };
-    this.customers.set(id, updated);
-    return updated;
+    try {
+      const customer = this.customers.get(id);
+      if (!customer) return undefined;
+      const updated = { ...customer, ...updates };
+      this.customers.set(id, updated);
+      return updated;
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
@@ -97,11 +106,15 @@ export class MemStorage implements IStorage {
   }
 
   async updatePackage(id: string, updates: Partial<InsertPackage>): Promise<Package | undefined> {
-    const pkg = this.packages.get(id);
-    if (!pkg) return undefined;
-    const updated = { ...pkg, ...updates };
-    this.packages.set(id, updated);
-    return updated;
+    try {
+      const pkg = this.packages.get(id);
+      if (!pkg) return undefined;
+      const updated = { ...pkg, ...updates };
+      this.packages.set(id, updated);
+      return updated;
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deletePackage(id: string): Promise<boolean> {
@@ -132,11 +145,15 @@ export class MemStorage implements IStorage {
   }
 
   async updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment | undefined> {
-    const payment = this.payments.get(id);
-    if (!payment) return undefined;
-    const updated = { ...payment, ...updates };
-    this.payments.set(id, updated);
-    return updated;
+    try {
+      const payment = this.payments.get(id);
+      if (!payment) return undefined;
+      const updated = { ...payment, ...updates };
+      this.payments.set(id, updated);
+      return updated;
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deletePayment(id: string): Promise<boolean> {
@@ -148,10 +165,11 @@ import { GoogleSheetStorage } from "./sheets-storage";
 import { CustomSheetStorage } from "./custom-sheets-storage";
 import { DbStorage } from "./db-storage";
 
-const USE_GOOGLE_SHEETS = process.env.SPREADSHEET_ID_PSB && process.env.SPREADSHEET_ID_PAYMENT;
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID_PAYMENT;
+const USE_GOOGLE_SHEETS = !!SPREADSHEET_ID;
 
-export const storage = USE_GOOGLE_SHEETS 
-  ? new CustomSheetStorage(process.env.SPREADSHEET_ID_PSB, process.env.SPREADSHEET_ID_PAYMENT)
+export const storage: IStorage = USE_GOOGLE_SHEETS && SPREADSHEET_ID
+  ? new CustomSheetStorage(SPREADSHEET_ID)
   : new MemStorage();
 
 console.log("Storage:", USE_GOOGLE_SHEETS ? "Google Sheets" : "Memory");

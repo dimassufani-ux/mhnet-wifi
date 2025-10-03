@@ -16,7 +16,7 @@ export function log(message: string, source = "express") {
     hour12: true,
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
+  console.log(`${formattedTime} [${String(source).replace(/[^a-zA-Z0-9-]/g, '')}] ${String(message).substring(0, 200)}`);
 }
 
 export async function setupVite(app: Express, server: Server) {
@@ -45,12 +45,10 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+      const clientTemplate = path.resolve(import.meta.dirname, "..", "client", "index.html");
+      if (!clientTemplate.includes(path.resolve(import.meta.dirname, ".."))) {
+        throw new Error('Invalid path');
+      }
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
@@ -80,6 +78,10 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    if (!indexPath.startsWith(distPath)) {
+      return res.status(403).send('Forbidden');
+    }
+    res.sendFile(indexPath);
   });
 }

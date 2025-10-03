@@ -12,29 +12,24 @@ interface Props {
   onSubmit: (data: any) => void;
 }
 
+const getInitialFormData = () => ({
+  customerId: "",
+  amount: 0,
+  status: "pending",
+  method: "",
+  month: "",
+  paymentDate: new Date().toISOString().split('T')[0],
+});
+
 export function AddPaymentDialog({ customers, onSubmit }: Props) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    customerId: "",
-    amount: 0,
-    status: "pending",
-    method: "",
-    month: "",
-    paymentDate: new Date().toISOString().split('T')[0],
-  });
+  const [formData, setFormData] = useState(getInitialFormData());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({ ...formData, paymentDate: new Date(formData.paymentDate) });
     setOpen(false);
-    setFormData({
-      customerId: "",
-      amount: 0,
-      status: "pending",
-      method: "",
-      month: "",
-      paymentDate: new Date().toISOString().split('T')[0],
-    });
+    setFormData(getInitialFormData());
   };
 
   return (
@@ -71,7 +66,7 @@ export function AddPaymentDialog({ customers, onSubmit }: Props) {
               id="amount"
               type="number"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, amount: parseInt(e.target.value) || 0 })}
               required
             />
           </div>

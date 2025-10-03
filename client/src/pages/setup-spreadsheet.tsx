@@ -33,7 +33,7 @@ export default function SetupSpreadsheet() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: data.error || "Gagal membuat spreadsheet",
+          description: "Gagal membuat spreadsheet",
         });
       }
     } catch (error) {
@@ -48,7 +48,12 @@ export default function SetupSpreadsheet() {
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {
+      toast({
+        variant: "destructive",
+        description: "Gagal menyalin",
+      });
+    });
     toast({
       description: "Disalin ke clipboard",
     });

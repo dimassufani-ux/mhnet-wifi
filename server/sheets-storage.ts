@@ -20,6 +20,12 @@ const PACKAGE_HEADERS = ["ID", "Nama", "Kecepatan", "Harga", "Deskripsi"];
 const PAYMENT_HEADERS = ["ID", "Customer ID", "Jumlah", "Tanggal Bayar", "Status", "Metode", "Bulan"];
 
 function rowToCustomer(row: any[]): Customer {
+  const parseDate = (dateStr: string | undefined): Date => {
+    if (!dateStr) return new Date();
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
   return {
     id: row[0] || "",
     name: row[1] || "",
@@ -27,8 +33,8 @@ function rowToCustomer(row: any[]): Customer {
     address: row[3] || "",
     packageId: row[4] || "",
     status: row[5] || "active",
-    installationDate: row[6] ? new Date(row[6]) : new Date(),
-    createdAt: row[7] ? new Date(row[7]) : new Date(),
+    installationDate: parseDate(row[6]),
+    createdAt: parseDate(row[7]),
   };
 }
 
@@ -102,74 +108,85 @@ export class GoogleSheetStorage {
       if (customersData.length === 0) {
         await writeSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A1:H1`, [CUSTOMER_HEADERS]);
       }
-    } catch (error) {
-      console.log("Customers sheet headers added or already exist");
-    }
-
-    try {
       const packagesData = await readSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A1:E1`);
       if (packagesData.length === 0) {
         await writeSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A1:E1`, [PACKAGE_HEADERS]);
       }
-    } catch (error) {
-      console.log("Packages sheet headers added or already exist");
-    }
-
-    try {
       const paymentsData = await readSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A1:G1`);
       if (paymentsData.length === 0) {
         await writeSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A1:G1`, [PAYMENT_HEADERS]);
       }
     } catch (error) {
-      console.log("Payments sheet headers added or already exist");
+      console.error('Failed to initialize headers:', error);
+      throw new Error('Failed to initialize headers');
     }
   }
 
   async getAllCustomers(): Promise<Customer[]> {
-    const data = await readSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A2:H`);
-    return data.map(rowToCustomer);
+    try {
+      const data = await readSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A2:H`);
+      return data.map(rowToCustomer);
+    } catch (error) {
+      console.error('Failed to get all customers:', error);
+      return [];
+    }
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    const customers = await this.getAllCustomers();
-    return customers.find(c => c.id === id);
+    try {
+      const customers = await this.getAllCustomers();
+      return customers.find(c => c.id === id);
+    } catch (error) {
+      console.error('Failed to get customer:', error);
+      return undefined;
+    }
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const id = randomUUID();
-    const customer: Customer = {
-      id,
-      name: insertCustomer.name,
-      phone: insertCustomer.phone,
-      address: insertCustomer.address,
-      packageId: insertCustomer.packageId,
-      status: insertCustomer.status || "active",
-      createdAt: new Date(),
-      installationDate: insertCustomer.installationDate 
-        ? new Date(insertCustomer.installationDate) 
-        : new Date()
-    };
+    try {
+      const id = randomUUID();
+      const customer: Customer = {
+        id,
+        name: insertCustomer.name,
+        phone: insertCustomer.phone,
+        address: insertCustomer.address,
+        packageId: insertCustomer.packageId,
+        status: insertCustomer.status || "active",
+        createdAt: new Date(),
+        installationDate: insertCustomer.installationDate 
+          ? new Date(insertCustomer.installationDate) 
+          : new Date()
+      };
 
-    await appendSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A:H`, [customerToRow(customer)]);
-    return customer;
+      await appendSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A:H`, [customerToRow(customer)]);
+      return customer;
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      throw new Error('Failed to create customer');
+    }
   }
 
   async updateCustomer(id: string, updates: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const customers = await this.getAllCustomers();
-    const index = customers.findIndex(c => c.id === id);
-    
-    if (index === -1) return undefined;
+    try {
+      const customers = await this.getAllCustomers();
+      const index = customers.findIndex(c => c.id === id);
+      
+      if (index === -1) return undefined;
 
-    const normalizedUpdates: any = { ...updates };
-    if (updates.installationDate) {
-      normalizedUpdates.installationDate = new Date(updates.installationDate);
+      const normalizedUpdates: any = { ...updates };
+      if (updates.installationDate) {
+        normalizedUpdates.installationDate = new Date(updates.installationDate);
+      }
+
+      const updated = { ...customers[index], ...normalizedUpdates };
+      const rowNumber = index + 2;
+      
+      await writeSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A${rowNumber}:H${rowNumber}`, [customerToRow(updated)]);
+      return updated;
+    } catch (error) {
+      console.error('Failed to update customer:', error);
+      return undefined;
     }
-
-    const updated = { ...customers[index], ...normalizedUpdates };
-    const rowNumber = index + 2;
-    
-    await writeSheet(this.spreadsheetId, `${CUSTOMERS_SHEET}!A${rowNumber}:H${rowNumber}`, [customerToRow(updated)]);
-    return updated;
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
@@ -191,40 +208,60 @@ export class GoogleSheetStorage {
   }
 
   async getAllPackages(): Promise<Package[]> {
-    const data = await readSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A2:E`);
-    return data.map(rowToPackage);
+    try {
+      const data = await readSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A2:E`);
+      return data.map(rowToPackage);
+    } catch (error) {
+      console.error('Failed to get all packages:', error);
+      return [];
+    }
   }
 
   async getPackage(id: string): Promise<Package | undefined> {
-    const packages = await this.getAllPackages();
-    return packages.find(p => p.id === id);
+    try {
+      const packages = await this.getAllPackages();
+      return packages.find(p => p.id === id);
+    } catch (error) {
+      console.error('Failed to get package:', error);
+      return undefined;
+    }
   }
 
   async createPackage(insertPackage: InsertPackage): Promise<Package> {
-    const id = randomUUID();
-    const pkg: Package = {
-      id,
-      name: insertPackage.name,
-      speed: insertPackage.speed,
-      price: insertPackage.price,
-      description: insertPackage.description || null
-    };
+    try {
+      const id = randomUUID();
+      const pkg: Package = {
+        id,
+        name: insertPackage.name,
+        speed: insertPackage.speed,
+        price: insertPackage.price,
+        description: insertPackage.description || null
+      };
 
-    await appendSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A:E`, [packageToRow(pkg)]);
-    return pkg;
+      await appendSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A:E`, [packageToRow(pkg)]);
+      return pkg;
+    } catch (error) {
+      console.error('Failed to create package:', error);
+      throw new Error('Failed to create package');
+    }
   }
 
   async updatePackage(id: string, updates: Partial<InsertPackage>): Promise<Package | undefined> {
-    const packages = await this.getAllPackages();
-    const index = packages.findIndex(p => p.id === id);
-    
-    if (index === -1) return undefined;
+    try {
+      const packages = await this.getAllPackages();
+      const index = packages.findIndex(p => p.id === id);
+      
+      if (index === -1) return undefined;
 
-    const updated = { ...packages[index], ...updates };
-    const rowNumber = index + 2;
-    
-    await writeSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A${rowNumber}:E${rowNumber}`, [packageToRow(updated)]);
-    return updated;
+      const updated = { ...packages[index], ...updates };
+      const rowNumber = index + 2;
+      
+      await writeSheet(this.spreadsheetId, `${PACKAGES_SHEET}!A${rowNumber}:E${rowNumber}`, [packageToRow(updated)]);
+      return updated;
+    } catch (error) {
+      console.error('Failed to update package:', error);
+      return undefined;
+    }
   }
 
   async deletePackage(id: string): Promise<boolean> {
@@ -246,49 +283,69 @@ export class GoogleSheetStorage {
   }
 
   async getAllPayments(): Promise<Payment[]> {
-    const data = await readSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A2:G`);
-    return data.map(rowToPayment);
+    try {
+      const data = await readSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A2:G`);
+      return data.map(rowToPayment);
+    } catch (error) {
+      console.error('Failed to get all payments:', error);
+      return [];
+    }
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
-    const payments = await this.getAllPayments();
-    return payments.find(p => p.id === id);
+    try {
+      const payments = await this.getAllPayments();
+      return payments.find(p => p.id === id);
+    } catch (error) {
+      console.error('Failed to get payment:', error);
+      return undefined;
+    }
   }
 
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
-    const id = randomUUID();
-    const payment: Payment = {
-      id,
-      customerId: insertPayment.customerId,
-      amount: insertPayment.amount,
-      paymentDate: insertPayment.paymentDate 
-        ? new Date(insertPayment.paymentDate)
-        : new Date(),
-      status: insertPayment.status || "pending",
-      method: insertPayment.method,
-      month: insertPayment.month
-    };
+    try {
+      const id = randomUUID();
+      const payment: Payment = {
+        id,
+        customerId: insertPayment.customerId,
+        amount: insertPayment.amount,
+        paymentDate: insertPayment.paymentDate 
+          ? new Date(insertPayment.paymentDate)
+          : new Date(),
+        status: insertPayment.status || "pending",
+        method: insertPayment.method,
+        month: insertPayment.month
+      };
 
-    await appendSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A:G`, [paymentToRow(payment)]);
-    return payment;
+      await appendSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A:G`, [paymentToRow(payment)]);
+      return payment;
+    } catch (error) {
+      console.error('Failed to create payment:', error);
+      throw new Error('Failed to create payment');
+    }
   }
 
   async updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment | undefined> {
-    const payments = await this.getAllPayments();
-    const index = payments.findIndex(p => p.id === id);
-    
-    if (index === -1) return undefined;
+    try {
+      const payments = await this.getAllPayments();
+      const index = payments.findIndex(p => p.id === id);
+      
+      if (index === -1) return undefined;
 
-    const normalizedUpdates: any = { ...updates };
-    if (updates.paymentDate) {
-      normalizedUpdates.paymentDate = new Date(updates.paymentDate);
+      const normalizedUpdates: any = { ...updates };
+      if (updates.paymentDate) {
+        normalizedUpdates.paymentDate = new Date(updates.paymentDate);
+      }
+
+      const updated = { ...payments[index], ...normalizedUpdates };
+      const rowNumber = index + 2;
+      
+      await writeSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A${rowNumber}:G${rowNumber}`, [paymentToRow(updated)]);
+      return updated;
+    } catch (error) {
+      console.error('Failed to update payment:', error);
+      return undefined;
     }
-
-    const updated = { ...payments[index], ...normalizedUpdates };
-    const rowNumber = index + 2;
-    
-    await writeSheet(this.spreadsheetId, `${PAYMENTS_SHEET}!A${rowNumber}:G${rowNumber}`, [paymentToRow(updated)]);
-    return updated;
   }
 
   async deletePayment(id: string): Promise<boolean> {

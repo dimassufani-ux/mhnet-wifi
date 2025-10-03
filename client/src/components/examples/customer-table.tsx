@@ -35,8 +35,8 @@ export default function CustomerTableExample() {
     <div className="p-4">
       <CustomerTable
         customers={mockCustomers}
-        onEdit={(customer) => console.log("Edit customer:", customer)}
-        onDelete={(customer) => console.log("Delete customer:", customer)}
+        onEdit={(customer) => console.log("Edit customer:", customer.id)}
+        onDelete={(customer) => console.log("Delete customer:", customer.id)}
       />
     </div>
   );

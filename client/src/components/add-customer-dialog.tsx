@@ -43,16 +43,19 @@ export function AddCustomerDialog({ packages, onSubmit }: AddCustomerDialogProps
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submit customer:", formData);
-    onSubmit?.(formData);
-    setOpen(false);
-    setFormData({
-      name: "",
-      phone: "",
-      address: "",
-      packageId: "",
-      status: "active",
-    });
+    try {
+      onSubmit?.(formData);
+      setOpen(false);
+      setFormData({
+        name: "",
+        phone: "",
+        address: "",
+        packageId: "",
+        status: "active",
+      });
+    } catch (error) {
+      // Error handled by parent
+    }
   };
 
   return (

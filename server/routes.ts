@@ -13,10 +13,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", async (req, res) => {
     try {
       const { username, password, name, role } = req.body;
-      const user = await createUser(username, password, name, role);
+      if (!username || !password || !name) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      const sanitizedUsername = String(username).replace(/[^a-zA-Z0-9_]/g, '').substring(0, 50);
+      const sanitizedName = String(name).replace(/[<>"'&]/g, '').substring(0, 100);
+      const sanitizedRole = role === 'admin' ? 'admin' : 'user';
+      const user = await createUser(sanitizedUsername, password, sanitizedName, sanitizedRole);
       res.json(user);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Registration failed' });
     }
   });
 
@@ -25,18 +31,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       loginSchema.parse(req.body);
       passport.authenticate("local", (err: any, user: any, info: any) => {
         if (err) return next(err);
-        if (!user) return res.status(401).json({ error: info?.message || "Login failed" });
+        if (!user) return res.status(401).json({ error: 'Login failed' });
         req.logIn(user, (err) => {
           if (err) return next(err);
           res.json({ user });
         });
       })(req, res, next);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid credentials' });
     }
   });
 
-  app.post("/api/logout", (req, res) => {
+  app.post("/api/logout", requireAuth, (req, res) => {
     req.logout(() => {
       res.json({ success: true });
     });
@@ -50,11 +56,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/csrf-token", requireAuth, (req, res) => {
+    res.json({ csrfToken: req.session?.id || '' });
+  });
+
   app.post("/api/init-spreadsheet", requireAuth, async (req, res) => {
     try {
       const { title } = req.body;
+      const sanitizedTitle = typeof title === 'string' 
+        ? title.replace(/[<>"'&]/g, '').substring(0, 100)
+        : "MHNET - Data Pelanggan WiFi";
       const spreadsheet = await createSpreadsheet(
-        title || "MHNET - Data Pelanggan WiFi",
+        sanitizedTitle || "MHNET - Data Pelanggan WiFi",
         ["Pelanggan", "Paket", "Pembayaran"]
       );
       
@@ -67,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         spreadsheetUrl: spreadsheet.spreadsheetUrl,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to initialize spreadsheet' });
     }
   });
 
@@ -76,19 +89,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customers = await storage.getAllCustomers();
       res.json(customers);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Failed to fetch customers:', error);
+      res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+  });
+
+  app.get("/api/psb", requireAuth, async (req, res) => {
+    try {
+      const psbCustomers = await storage.getAllPSB();
+      res.json(psbCustomers);
+    } catch (error: any) {
+      console.error('Failed to fetch PSB:', error);
+      res.status(500).json({ error: 'Failed to fetch PSB' });
     }
   });
 
   app.get("/api/customers/:id", requireAuth, async (req, res) => {
     try {
-      const customer = await storage.getCustomer(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const customer = await storage.getCustomer(id);
       if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
       }
       res.json(customer);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch customer' });
     }
   });
 
@@ -98,29 +123,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customer = await storage.createCustomer(validated);
       res.json(customer);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid customer data' });
     }
   });
 
   app.put("/api/customers/:id", requireAuth, async (req, res) => {
     try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
       const validated = insertCustomerSchema.partial().parse(req.body);
-      const customer = await storage.updateCustomer(req.params.id, validated);
+      const customer = await storage.updateCustomer(id, validated);
       if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
       }
       res.json(customer);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid customer data' });
     }
   });
 
   app.delete("/api/customers/:id", requireAuth, async (req, res) => {
     try {
-      const success = await storage.deleteCustomer(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const success = await storage.deleteCustomer(id);
       res.json({ success });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to delete customer' });
     }
   });
 
@@ -129,19 +156,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const packages = await storage.getAllPackages();
       res.json(packages);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch packages' });
     }
   });
 
   app.get("/api/packages/:id", requireAuth, async (req, res) => {
     try {
-      const pkg = await storage.getPackage(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const pkg = await storage.getPackage(id);
       if (!pkg) {
         return res.status(404).json({ error: "Package not found" });
       }
       res.json(pkg);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch package' });
     }
   });
 
@@ -151,29 +179,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pkg = await storage.createPackage(validated);
       res.json(pkg);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid package data' });
     }
   });
 
   app.put("/api/packages/:id", requireAuth, async (req, res) => {
     try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
       const validated = insertPackageSchema.partial().parse(req.body);
-      const pkg = await storage.updatePackage(req.params.id, validated);
+      const pkg = await storage.updatePackage(id, validated);
       if (!pkg) {
         return res.status(404).json({ error: "Package not found" });
       }
       res.json(pkg);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid package data' });
     }
   });
 
   app.delete("/api/packages/:id", requireAuth, async (req, res) => {
     try {
-      const success = await storage.deletePackage(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const success = await storage.deletePackage(id);
       res.json({ success });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to delete package' });
     }
   });
 
@@ -182,19 +212,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payments = await storage.getAllPayments();
       res.json(payments);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch payments' });
     }
   });
 
   app.get("/api/payments/:id", requireAuth, async (req, res) => {
     try {
-      const payment = await storage.getPayment(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const payment = await storage.getPayment(id);
       if (!payment) {
         return res.status(404).json({ error: "Payment not found" });
       }
       res.json(payment);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to fetch payment' });
     }
   });
 
@@ -204,29 +235,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payment = await storage.createPayment(validated);
       res.json(payment);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid payment data' });
     }
   });
 
   app.put("/api/payments/:id", requireAuth, async (req, res) => {
     try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
       const validated = insertPaymentSchema.partial().parse(req.body);
-      const payment = await storage.updatePayment(req.params.id, validated);
+      const payment = await storage.updatePayment(id, validated);
       if (!payment) {
         return res.status(404).json({ error: "Payment not found" });
       }
       res.json(payment);
     } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: 'Invalid payment data' });
     }
   });
 
   app.delete("/api/payments/:id", requireAuth, async (req, res) => {
     try {
-      const success = await storage.deletePayment(req.params.id);
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const success = await storage.deletePayment(id);
       res.json({ success });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: 'Failed to delete payment' });
     }
   });
 

@@ -5,11 +5,19 @@ import { useTheme } from "./theme-provider";
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
+  const handleToggle = () => {
+    try {
+      setTheme(theme === "light" ? "dark" : "light");
+    } catch (error) {
+      // Ignore theme toggle errors
+    }
+  };
+
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      onClick={handleToggle}
       data-testid="button-theme-toggle"
     >
       <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

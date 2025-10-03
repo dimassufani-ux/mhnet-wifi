@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ErrorBoundary } from "@/components/error-boundary";
 import Dashboard from "@/pages/dashboard";
 import Customers from "@/pages/customers";
+import PSB from "@/pages/psb";
 import Packages from "@/pages/packages";
 import Payments from "@/pages/payments";
 import Settings from "@/pages/settings";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/">{() => <ProtectedRoute component={Dashboard} />}</Route>
       <Route path="/customers">{() => <ProtectedRoute component={Customers} />}</Route>
+      <Route path="/psb">{() => <ProtectedRoute component={PSB} />}</Route>
       <Route path="/packages">{() => <ProtectedRoute component={Packages} />}</Route>
       <Route path="/payments">{() => <ProtectedRoute component={Payments} />}</Route>
       <Route path="/settings">{() => <ProtectedRoute component={Settings} />}</Route>

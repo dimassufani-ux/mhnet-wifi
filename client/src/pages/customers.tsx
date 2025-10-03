@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { CustomerTable } from "@/components/customer-table";
 import { AddCustomerDialog } from "@/components/add-customer-dialog";
@@ -45,7 +45,7 @@ export default function Customers() {
     },
   });
 
-  const customersWithPackageNames = customers.map(customer => {
+  const customersWithPackageNames = useMemo(() => customers.map(customer => {
     const pkg = packages.find(p => p.id === customer.packageId);
     return {
       ...customer,
@@ -56,13 +56,13 @@ export default function Customers() {
         year: "numeric",
       }),
     };
-  });
+  }), [customers, packages]);
 
-  const filteredCustomers = customersWithPackageNames.filter((customer) =>
+  const filteredCustomers = useMemo(() => customersWithPackageNames.filter((customer) =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.phone.includes(searchQuery) ||
     customer.address.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ), [customersWithPackageNames, searchQuery]);
 
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const paginatedCustomers = filteredCustomers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
@@ -108,14 +108,21 @@ export default function Customers() {
           </DropdownMenu>
           <AddCustomerDialog
           packages={packages}
-          onSubmit={(data) => {
-            apiRequest("/api/customers", "POST", data).then(() => {
+          onSubmit={async (data) => {
+            try {
+              await apiRequest("/api/customers", "POST", data);
               queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
               toast({
                 title: "Berhasil",
                 description: "Pelanggan baru berhasil ditambahkan",
               });
-            });
+            } catch (error) {
+              toast({
+                title: "Error",
+                description: "Gagal menambahkan pelanggan",
+                variant: "destructive",
+              });
+            }
           }}
         />
         </div>

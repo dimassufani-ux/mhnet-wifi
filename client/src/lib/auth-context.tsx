@@ -37,13 +37,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       credentials: "include",
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
+    if (!res.ok) throw new Error(data.message || 'Login failed');
     setUser(data.user);
   };
 
   const logout = async () => {
-    await fetch("/api/logout", { method: "POST", credentials: "include" });
-    setUser(null);
+    try {
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
+    } catch (error) {
+      // Ignore logout errors
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Users, Wifi, CreditCard, TrendingUp, AlertCircle } from "lucide-react";
 import { StatsCard } from "@/components/stats-card";
 import { CustomerTable } from "@/components/customer-table";
@@ -8,22 +9,34 @@ import { checkOverduePayments } from "@/lib/notifications";
 import type { Customer, Package, Payment } from "@shared/schema";
 
 export default function Dashboard() {
-  const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
+  const { data: customers = [], isLoading: loadingCustomers, error: customersError } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
     refetchInterval: 30000, // Auto refresh setiap 30 detik
   });
 
-  const { data: packages = [] } = useQuery<Package[]>({
+  const { data: packages = [], error: packagesError } = useQuery<Package[]>({
     queryKey: ["/api/packages"],
     refetchInterval: 30000,
   });
 
-  const { data: payments = [] } = useQuery<Payment[]>({
+  const { data: payments = [], error: paymentsError } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
     refetchInterval: 30000,
   });
 
-  const customersWithPackageNames = customers.slice(0, 5).map(customer => {
+  if (customersError || packagesError || paymentsError) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>Gagal memuat data. Silakan refresh halaman.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const customersWithPackageNames = useMemo(() => customers.slice(0, 5).map(customer => {
     const pkg = packages.find(p => p.id === customer.packageId);
     return {
       ...customer,
@@ -34,7 +47,7 @@ export default function Dashboard() {
         year: "numeric",
       }),
     };
-  });
+  }), [customers, packages]);
 
   const activeCustomers = customers.filter(c => c.status === "active").length;
   const totalRevenue = payments
@@ -117,8 +130,8 @@ export default function Dashboard() {
           ) : (
             <CustomerTable
               customers={customersWithPackageNames}
-              onEdit={(customer) => console.log("Edit customer:", customer)}
-              onDelete={(customer) => console.log("Delete customer:", customer)}
+              onEdit={() => {}}
+              onDelete={() => {}}
             />
           )}
         </CardContent>

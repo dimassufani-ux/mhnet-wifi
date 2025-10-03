@@ -9,7 +9,7 @@ export default function PackageCardExample() {
         price={150000}
         description="Cocok untuk browsing dan streaming"
         customerCount={45}
-        onEdit={() => console.log("Edit Basic package")}
+        onEdit={() => {}}
       />
       <PackageCard
         name="Premium"
@@ -17,7 +17,7 @@ export default function PackageCardExample() {
         price={300000}
         description="Untuk keluarga dan gaming"
         customerCount={78}
-        onEdit={() => console.log("Edit Premium package")}
+        onEdit={() => {}}
       />
       <PackageCard
         name="Ultra"
@@ -25,7 +25,7 @@ export default function PackageCardExample() {
         price={500000}
         description="Kecepatan maksimal untuk bisnis"
         customerCount={27}
-        onEdit={() => console.log("Edit Ultra package")}
+        onEdit={() => {}}
       />
     </div>
   );

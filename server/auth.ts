@@ -14,6 +14,8 @@ export function setupAuth(app: Express) {
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+        sameSite: "strict",
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       },
     })
@@ -37,11 +39,19 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user: any, done) => {
-    done(null, user.username);
+    try {
+      done(null, user.username);
+    } catch (error) {
+      done(error);
+    }
   });
 
   passport.deserializeUser(async (username: any, done) => {
-    done(null, { username });
+    try {
+      done(null, { username });
+    } catch (error) {
+      done(error);
+    }
   });
 }
 

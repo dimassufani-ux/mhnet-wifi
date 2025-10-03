@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
+import type { InsertPackage } from "@shared/schema";
 
 interface Props {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: InsertPackage) => void;
 }
 
 export function AddPackageDialog({ onSubmit }: Props) {
@@ -19,12 +20,32 @@ export function AddPackageDialog({ onSubmit }: Props) {
     description: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    setOpen(false);
-    setFormData({ name: "", speed: "", price: 0, description: "" });
-  };
+    try {
+      await onSubmit(formData);
+      setOpen(false);
+      setFormData({ name: "", speed: "", price: 0, description: "" });
+    } catch (error) {
+      console.error('Failed to add package:', error);
+    }
+  }, [formData, onSubmit]);
+
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, name: e.target.value }));
+  }, []);
+
+  const handleSpeedChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, speed: e.target.value }));
+  }, []);
+
+  const handlePriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }));
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, description: e.target.value }));
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -44,7 +65,7 @@ export function AddPackageDialog({ onSubmit }: Props) {
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={handleNameChange}
               placeholder="Paket Home"
               required
             />
@@ -54,7 +75,7 @@ export function AddPackageDialog({ onSubmit }: Props) {
             <Input
               id="speed"
               value={formData.speed}
-              onChange={(e) => setFormData({ ...formData, speed: e.target.value })}
+              onChange={handleSpeedChange}
               placeholder="10 Mbps"
               required
             />
@@ -65,7 +86,7 @@ export function AddPackageDialog({ onSubmit }: Props) {
               id="price"
               type="number"
               value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
+              onChange={handlePriceChange}
               required
             />
           </div>
@@ -74,7 +95,7 @@ export function AddPackageDialog({ onSubmit }: Props) {
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={handleDescriptionChange}
               placeholder="Cocok untuk rumahan"
             />
           </div>

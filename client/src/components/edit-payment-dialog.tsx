@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ export function EditPaymentDialog({ payment, onSubmit, open, onOpenChange }: Pro
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="amount">Jumlah</Label>
-            <Input id="amount" type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseInt(e.target.value) })} required />
+            <Input id="amount" type="number" value={formData.amount} onChange={useCallback((e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 })), [])} required />
           </div>
           <div>
             <Label>Status</Label>

@@ -1,4 +1,4 @@
-import { Home, Users, Package, CreditCard, Settings, FileSpreadsheet } from "lucide-react";
+import { Home, Users, UserPlus, Package, CreditCard, Settings, FileSpreadsheet } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,11 @@ const menuItems = [
     title: "Pelanggan",
     url: "/customers",
     icon: Users,
+  },
+  {
+    title: "PSB",
+    url: "/psb",
+    icon: UserPlus,
   },
   {
     title: "Paket",

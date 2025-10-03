@@ -3,25 +3,46 @@ import { readSheet, writeSheet, appendSheet } from "./google-sheets";
 import type { Customer, InsertCustomer, Package, InsertPackage, Payment, InsertPayment } from "@shared/schema";
 import type { IStorage } from "./storage";
 
-const SPREADSHEET_ID_PSB = process.env.SPREADSHEET_ID_PSB || "";
-const SPREADSHEET_ID_PAYMENT = process.env.SPREADSHEET_ID_PAYMENT || "";
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID_PAYMENT || "";
 
 export class CustomSheetStorage implements IStorage {
-  private psbSheetId: string;
-  private paymentSheetId: string;
+  private sheetId: string;
 
-  constructor(psbSheetId?: string, paymentSheetId?: string) {
-    this.psbSheetId = psbSheetId || SPREADSHEET_ID_PSB;
-    this.paymentSheetId = paymentSheetId || SPREADSHEET_ID_PAYMENT;
+  constructor(sheetId?: string) {
+    this.sheetId = sheetId || SPREADSHEET_ID;
   }
 
-  // Read customers from DAFTAR PSB MHNET sheet
+  // Read customers from payment sheet
   async getAllCustomers(): Promise<Customer[]> {
     try {
-      const data = await readSheet(this.psbSheetId, `DAFTAR PSB MHNET!A2:D`);
+      const data = await readSheet(this.sheetId, `OKTOBER!A2:C`);
       
-      return data.map((row, index) => ({
-        id: `customer-${index + 1}`,
+      return data.map((row) => ({
+        id: `customer-${row[0]}`,
+        name: row[2] || "",
+        phone: "",
+        address: "",
+        packageId: "pkg-1",
+        status: "active",
+        installationDate: new Date(),
+        createdAt: new Date(),
+      }));
+    } catch (error) {
+      console.error("Error reading customers:", error);
+      return [];
+    }
+  }
+
+  // Read PSB from DAFTAR PSB MHNET sheet
+  async getAllPSB(): Promise<Customer[]> {
+    try {
+      const psbSheetId = process.env.SPREADSHEET_ID_PSB || "";
+      if (!psbSheetId) return [];
+      
+      const data = await readSheet(psbSheetId, `OKTOBER!A2:D`);
+      
+      return data.map((row) => ({
+        id: `psb-${row[0]}`,
         name: row[1] || "",
         phone: row[2] || "",
         address: "",
@@ -31,7 +52,7 @@ export class CustomSheetStorage implements IStorage {
         createdAt: new Date(),
       }));
     } catch (error) {
-      console.error("Error reading customers:", error);
+      console.error("Error reading PSB:", error);
       return [];
     }
   }
@@ -47,36 +68,48 @@ export class CustomSheetStorage implements IStorage {
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
-    const customers = await this.getAllCustomers();
-    return customers.find(c => c.id === id);
+    try {
+      const customers = await this.getAllCustomers();
+      return customers.find(c => c.id === id);
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async createCustomer(data: InsertCustomer): Promise<Customer> {
-    const customers = await this.getAllCustomers();
-    const newNo = customers.length + 1;
-    const today = new Date();
-    const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
-    
-    const row = [newNo, data.name, data.phone, dateStr];
-    await appendSheet(this.psbSheetId, `DAFTAR PSB MHNET!A:D`, [row]);
-    
-    return {
-      id: `customer-${newNo}`,
-      name: data.name,
-      phone: data.phone,
-      address: data.address,
-      packageId: data.packageId,
-      status: data.status || "active",
-      installationDate: data.installationDate || new Date(),
-      createdAt: new Date(),
-    };
+    try {
+      const customers = await this.getAllCustomers();
+      const newNo = customers.length + 1;
+      const today = new Date();
+      const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+      
+      const row = [newNo, "-", data.name];
+      await appendSheet(this.sheetId, `OKTOBER!A:C`, [row]);
+      
+      return {
+        id: `customer-${newNo}`,
+        name: data.name,
+        phone: data.phone,
+        address: data.address,
+        packageId: data.packageId,
+        status: data.status || "active",
+        installationDate: data.installationDate || new Date(),
+        createdAt: new Date(),
+      };
+    } catch (error) {
+      throw new Error('Failed to create customer');
+    }
   }
 
   async updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const customers = await this.getAllCustomers();
-    const customer = customers.find(c => c.id === id);
-    if (!customer) return undefined;
-    return { ...customer, ...data };
+    try {
+      const customers = await this.getAllCustomers();
+      const customer = customers.find(c => c.id === id);
+      if (!customer) return undefined;
+      return { ...customer, ...data };
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
@@ -95,7 +128,11 @@ export class CustomSheetStorage implements IStorage {
   }
 
   async getPackage(id: string): Promise<Package | undefined> {
-    return this.packages.find(p => p.id === id);
+    try {
+      return this.packages.find(p => p.id === id);
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async createPackage(data: InsertPackage): Promise<Package> {
@@ -111,10 +148,14 @@ export class CustomSheetStorage implements IStorage {
   }
 
   async updatePackage(id: string, data: Partial<InsertPackage>): Promise<Package | undefined> {
-    const index = this.packages.findIndex(p => p.id === id);
-    if (index === -1) return undefined;
-    this.packages[index] = { ...this.packages[index], ...data };
-    return this.packages[index];
+    try {
+      const index = this.packages.findIndex(p => p.id === id);
+      if (index === -1) return undefined;
+      this.packages[index] = { ...this.packages[index], ...data };
+      return this.packages[index];
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deletePackage(id: string): Promise<boolean> {
@@ -126,22 +167,24 @@ export class CustomSheetStorage implements IStorage {
 
   // Payments - read from monthly sheets
   async getAllPayments(): Promise<Payment[]> {
-    const customers = await this.getAllCustomers();
-    const currentMonth = new Date().toLocaleString("id-ID", { month: "long" }).toUpperCase();
-    const monthName = new Date().toLocaleString("id-ID", { month: "long", year: "numeric" });
-    
     try {
-      const paymentData = await readSheet(this.paymentSheetId, `${currentMonth}!A2:D`);
+      const paymentData = await readSheet(this.sheetId, `OKTOBER!A2:C`);
       
-      return paymentData.map((row, index) => ({
-        id: `payment-${index + 1}`,
-        customerId: `customer-${index + 1}`,
-        amount: 150000,
-        paymentDate: new Date(),
-        status: row[1] === "Sudah Bayar" ? "paid" : "pending",
-        method: "Transfer",
-        month: monthName,
-      }));
+      return paymentData.map((row) => {
+        const customerNo = row[0];
+        const customerName = row[2] || "";
+        const paymentStatus = row[1];
+        
+        return {
+          id: `payment-${customerNo}-OKTOBER`,
+          customerId: `customer-${customerNo}`,
+          amount: 150000,
+          paymentDate: new Date(),
+          status: paymentStatus === "Sudah Bayar" ? "paid" : "pending",
+          method: "Transfer",
+          month: "Oktober 2025",
+        };
+      });
     } catch (error) {
       console.error("Error reading payments:", error);
       return [];
@@ -149,8 +192,12 @@ export class CustomSheetStorage implements IStorage {
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
-    const payments = await this.getAllPayments();
-    return payments.find(p => p.id === id);
+    try {
+      const payments = await this.getAllPayments();
+      return payments.find(p => p.id === id);
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async createPayment(data: InsertPayment): Promise<Payment> {
@@ -166,9 +213,13 @@ export class CustomSheetStorage implements IStorage {
   }
 
   async updatePayment(id: string, data: Partial<InsertPayment>): Promise<Payment | undefined> {
-    const payment = await this.getPayment(id);
-    if (!payment) return undefined;
-    return { ...payment, ...data };
+    try {
+      const payment = await this.getPayment(id);
+      if (!payment) return undefined;
+      return { ...payment, ...data };
+    } catch (error) {
+      return undefined;
+    }
   }
 
   async deletePayment(id: string): Promise<boolean> {

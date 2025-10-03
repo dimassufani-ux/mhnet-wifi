@@ -20,7 +20,7 @@ export default function Login() {
     try {
       await login(username, password);
     } catch (err: any) {
-      setError(err.message || "Login gagal");
+      setError("Login gagal");
     } finally {
       setLoading(false);
     }

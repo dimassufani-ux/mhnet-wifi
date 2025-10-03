@@ -7,22 +7,30 @@ const CREDENTIALS_PATH = path.join(process.cwd(), 'google-credentials.json');
 export async function getGoogleSheetClient() {
   // Try environment variable first (for Vercel/Railway)
   if (process.env.GOOGLE_CREDENTIALS) {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    return google.sheets({ version: 'v4', auth });
+    try {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+      return google.sheets({ version: 'v4', auth });
+    } catch (error) {
+      throw new Error('Failed to parse credentials');
+    }
   }
 
   // Try service account file (for local)
   if (fs.existsSync(CREDENTIALS_PATH)) {
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    return google.sheets({ version: 'v4', auth });
+    try {
+      const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+      return google.sheets({ version: 'v4', auth });
+    } catch (error) {
+      throw new Error('Failed to parse credentials');
+    }
   }
 
   // Fallback to Replit connector
@@ -33,9 +41,9 @@ export async function getGoogleSheetClient() {
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
-  if (xReplitToken && hostname) {
+  if (xReplitToken && hostname && /^[a-z0-9.-]+\.replit\.com$/.test(hostname)) {
     const connectionSettings = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-sheet',
+      `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=google-sheet`,
       { headers: { 'Accept': 'application/json', 'X_REPLIT_TOKEN': xReplitToken } }
     ).then(res => res.json()).then(data => data.items?.[0]);
 
@@ -51,39 +59,54 @@ export async function getGoogleSheetClient() {
 }
 
 export async function readSheet(spreadsheetId: string, range: string) {
-  const sheets = await getGoogleSheetClient();
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range,
-  });
-  return response.data.values || [];
+  try {
+    const sheets = await getGoogleSheetClient();
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    return response.data.values || [];
+  } catch (error) {
+    console.error('Failed to read sheet:', error);
+    throw new Error('Failed to read sheet');
+  }
 }
 
 export async function writeSheet(spreadsheetId: string, range: string, values: any[][]) {
-  const sheets = await getGoogleSheetClient();
-  const response = await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values,
-    },
-  });
-  return response.data;
+  try {
+    const sheets = await getGoogleSheetClient();
+    const response = await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to write sheet:', error);
+    throw new Error('Failed to write sheet');
+  }
 }
 
 export async function appendSheet(spreadsheetId: string, range: string, values: any[][]) {
-  const sheets = await getGoogleSheetClient();
-  const response = await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range,
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values,
-    },
-  });
-  return response.data;
+  try {
+    const sheets = await getGoogleSheetClient();
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to append sheet:', error);
+    throw new Error('Failed to append sheet');
+  }
 }
 
 export async function createSpreadsheet(title: string, sheetNames: string[]) {

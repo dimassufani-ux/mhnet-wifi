@@ -6,8 +6,13 @@ let db: any = null;
 
 export function getDb() {
   if (!db && process.env.DATABASE_URL) {
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql as any, { schema });
+    try {
+      const sql = neon(process.env.DATABASE_URL);
+      db = drizzle(sql as any, { schema });
+    } catch (error) {
+      console.error('Database connection failed:', error);
+      throw new Error('Database connection failed');
+    }
   }
   return db;
 }

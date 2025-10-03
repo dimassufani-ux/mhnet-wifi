@@ -22,6 +22,9 @@ export default function Packages() {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
       toast({ title: "Berhasil", description: "Paket berhasil ditambahkan" });
     },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: "Gagal menambahkan paket", variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
@@ -29,6 +32,9 @@ export default function Packages() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
       toast({ title: "Berhasil", description: "Paket berhasil diupdate" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: "Gagal mengupdate paket", variant: "destructive" });
     },
   });
 
