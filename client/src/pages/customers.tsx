@@ -78,15 +78,15 @@ export default function Customers() {
     });
   };
 
-  return isLoading ? (
+  return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Pelanggan</h1>
-        <p className="text-muted-foreground mt-1">Loading...</p>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-6">
+      {isLoading && (
+        <div>
+          <h1 className="text-3xl font-semibold">Pelanggan</h1>
+          <p className="text-muted-foreground mt-1">Loading...</p>
+        </div>
+      )}
+      {!isLoading && (<>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Pelanggan</h1>
@@ -240,6 +240,8 @@ export default function Customers() {
           </form>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 }
