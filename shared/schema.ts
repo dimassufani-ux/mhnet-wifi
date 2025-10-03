@@ -14,22 +14,19 @@ export const users = pgTable("users", {
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  paymentStatus: text("payment_status").notNull().default("Belum Lunas"),
   name: text("name").notNull(),
-  phone: text("phone").notNull(),
-  address: text("address").notNull(),
-  packageId: varchar("package_id").notNull(),
-  status: text("status").notNull().default("active"),
-  installationDate: timestamp("installation_date").notNull().defaultNow(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  nickname: text("nickname"),
 });
 
-export const packages = pgTable("packages", {
+export const psb = pgTable("psb", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  speed: text("speed").notNull(),
-  price: integer("price").notNull(),
-  description: text("description"),
+  phone: text("phone").notNull(),
+  joinDate: timestamp("join_date").notNull().defaultNow(),
 });
+
+
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -43,10 +40,9 @@ export const payments = pgTable("payments", {
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
-  createdAt: true,
 });
 
-export const insertPackageSchema = createInsertSchema(packages).omit({
+export const insertPSBSchema = createInsertSchema(psb).omit({
   id: true,
 });
 
@@ -66,8 +62,8 @@ export const loginSchema = z.object({
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
-export type Package = typeof packages.$inferSelect;
-export type InsertPackage = z.infer<typeof insertPackageSchema>;
+export type PSB = typeof psb.$inferSelect;
+export type InsertPSB = z.infer<typeof insertPSBSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type User = typeof users.$inferSelect;

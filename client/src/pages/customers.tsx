@@ -1,31 +1,26 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { CustomerTable } from "@/components/customer-table";
-import { AddCustomerDialog } from "@/components/add-customer-dialog";
-import { EditCustomerDialog } from "@/components/edit-customer-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight, Download } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, ChevronLeft, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { exportCustomersToCSV, exportCustomersToPDF } from "@/lib/export-utils";
-import type { Customer, Package } from "@shared/schema";
+import type { Customer } from "@shared/schema";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [formData, setFormData] = useState({ paymentStatus: "Belum Lunas", name: "", nickname: "" });
   const { toast } = useToast();
   const itemsPerPage = 10;
 
-  const { data: customers = [], isLoading: loadingCustomers } = useQuery<Customer[]>({
+  const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
-    refetchInterval: 30000,
-  });
-
-  const { data: packages = [] } = useQuery<Package[]>({
-    queryKey: ["/api/packages"],
     refetchInterval: 30000,
   });
 
@@ -35,46 +30,53 @@ export default function Customers() {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       toast({ title: "Berhasil", description: "Pelanggan berhasil dihapus" });
     },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest(`/api/customers/${id}`, "PUT", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      toast({ title: "Berhasil", description: "Pelanggan berhasil diupdate" });
+    onError: (error) => {
+      toast({ title: "Error", description: "Gagal menghapus pelanggan", variant: "destructive" });
     },
   });
 
-  const customersWithPackageNames = useMemo(() => customers.map(customer => {
-    const pkg = packages.find(p => p.id === customer.packageId);
-    return {
-      ...customer,
-      packageName: pkg ? `${pkg.name} ${pkg.speed}` : "Unknown",
-      installationDate: new Date(customer.installationDate).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    };
-  }), [customers, packages]);
-
-  const filteredCustomers = useMemo(() => customersWithPackageNames.filter((customer) =>
+  const filteredCustomers = useMemo(() => customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery) ||
-    customer.address.toLowerCase().includes(searchQuery.toLowerCase())
-  ), [customersWithPackageNames, searchQuery]);
+    (customer.nickname && customer.nickname.toLowerCase().includes(searchQuery.toLowerCase()))
+  ), [customers, searchQuery]);
 
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const paginatedCustomers = filteredCustomers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  if (loadingCustomers) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingCustomer) {
+        await apiRequest(`/api/customers/${editingCustomer.id}`, "PUT", formData);
+        toast({ title: "Berhasil", description: "Pelanggan berhasil diupdate" });
+        setEditingCustomer(null);
+      } else {
+        await apiRequest("/api/customers", "POST", formData);
+        toast({ title: "Berhasil", description: "Pelanggan berhasil ditambahkan" });
+        setShowAddDialog(false);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      setFormData({ paymentStatus: "Belum Lunas", name: "", nickname: "" });
+    } catch (error) {
+      toast({ title: "Error", description: "Gagal menyimpan data", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      paymentStatus: customer.paymentStatus,
+      name: customer.name,
+      nickname: customer.nickname || "",
+    });
+  };
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold">Pelanggan</h1>
-            <p className="text-muted-foreground mt-1">Loading...</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-semibold">Pelanggan</h1>
+          <p className="text-muted-foreground mt-1">Loading...</p>
         </div>
       </div>
     );
@@ -89,65 +91,71 @@ export default function Customers() {
             Kelola data pelanggan WiFi ({customers.length} pelanggan)
           </p>
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => exportCustomersToCSV(customers, packages)}>
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportCustomersToPDF(customers, packages)}>
-                Export PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <AddCustomerDialog
-          packages={packages}
-          onSubmit={async (data) => {
-            try {
-              await apiRequest("/api/customers", "POST", data);
-              queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-              toast({
-                title: "Berhasil",
-                description: "Pelanggan baru berhasil ditambahkan",
-              });
-            } catch (error) {
-              toast({
-                title: "Error",
-                description: "Gagal menambahkan pelanggan",
-                variant: "destructive",
-              });
-            }
-          }}
-        />
-        </div>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Tambah Pelanggan
+        </Button>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Cari pelanggan..."
+          placeholder="Cari nama pelanggan..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9"
-          data-testid="input-search-customer"
         />
       </div>
 
-      <CustomerTable
-        customers={paginatedCustomers}
-        onEdit={(customer) => setEditingCustomer(customers.find(c => c.id === customer.id) || null)}
-        onDelete={(customer) => {
-          if (confirm(`Hapus pelanggan ${customer.name}?`)) {
-            deleteMutation.mutate(customer.id);
-          }
-        }}
-      />
+      <div className="rounded-md border">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="p-4 text-left font-medium">Status Pembayaran</th>
+              <th className="p-4 text-left font-medium">Nama Pelanggan</th>
+              <th className="p-4 text-left font-medium">Nama Panggilan</th>
+              <th className="p-4 text-right font-medium">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedCustomers.map((customer) => (
+              <tr key={customer.id} className="border-b">
+                <td className="p-4">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    customer.paymentStatus === "Lunas" 
+                      ? "bg-green-100 text-green-800" 
+                      : "bg-yellow-100 text-yellow-800"
+                  }`}>
+                    {customer.paymentStatus}
+                  </span>
+                </td>
+                <td className="p-4">{customer.name}</td>
+                <td className="p-4 text-muted-foreground">{customer.nickname || "-"}</td>
+                <td className="p-4 text-right space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(customer)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm(`Hapus ${customer.name}?`)) {
+                        deleteMutation.mutate(customer.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
@@ -165,20 +173,56 @@ export default function Customers() {
         </div>
       )}
 
-      {customers.length > 0 && (
-        <EditCustomerDialog
-          customer={editingCustomer || customers[0]}
-          packages={packages}
-          open={!!editingCustomer}
-          onOpenChange={(open) => !open && setEditingCustomer(null)}
-          onSubmit={(data) => {
-            if (editingCustomer) {
-              updateMutation.mutate({ id: editingCustomer.id, data });
-              setEditingCustomer(null);
-            }
-          }}
-        />
-      )}
+      <Dialog open={showAddDialog || !!editingCustomer} onOpenChange={(open) => {
+        if (!open) {
+          setShowAddDialog(false);
+          setEditingCustomer(null);
+          setFormData({ paymentStatus: "Belum Lunas", name: "", nickname: "" });
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingCustomer ? "Edit Pelanggan" : "Tambah Pelanggan Baru"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="paymentStatus">Status Pembayaran</Label>
+              <Select
+                value={formData.paymentStatus}
+                onValueChange={(value) => setFormData({ ...formData, paymentStatus: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Lunas">Lunas</SelectItem>
+                  <SelectItem value="Belum Lunas">Belum Lunas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="name">Nama Pelanggan</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="nickname">Nama Panggilan (Opsional)</Label>
+              <Input
+                id="nickname"
+                value={formData.nickname}
+                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              {editingCustomer ? "Update" : "Tambah"} Pelanggan
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

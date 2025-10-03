@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCustomerSchema, insertPackageSchema, insertPaymentSchema, loginSchema } from "@shared/schema";
+import { insertCustomerSchema, insertPSBSchema, insertPaymentSchema, loginSchema } from "@shared/schema";
 import { GoogleSheetStorage } from "./sheets-storage";
 import { createSpreadsheet } from "./google-sheets";
 import { requireAuth } from "./auth";
@@ -96,11 +96,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/psb", requireAuth, async (req, res) => {
     try {
-      const psbCustomers = await storage.getAllPSB();
-      res.json(psbCustomers);
+      // PSB only available in CustomSheetStorage
+      if ('getAllPSB' in storage) {
+        const psbList = await (storage as any).getAllPSB();
+        res.json(psbList);
+      } else {
+        res.json([]);
+      }
     } catch (error: any) {
       console.error('Failed to fetch PSB:', error);
       res.status(500).json({ error: 'Failed to fetch PSB' });
+    }
+  });
+
+  app.get("/api/psb/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      if ('getPSB' in storage) {
+        const psb = await (storage as any).getPSB(id);
+        if (!psb) {
+          return res.status(404).json({ error: "PSB not found" });
+        }
+        res.json(psb);
+      } else {
+        res.status(404).json({ error: "PSB not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch PSB' });
+    }
+  });
+
+  app.post("/api/psb", requireAuth, async (req, res) => {
+    try {
+      const validated = insertPSBSchema.parse(req.body);
+      if ('createPSB' in storage) {
+        const psb = await (storage as any).createPSB(validated);
+        res.json(psb);
+      } else {
+        res.status(400).json({ error: 'PSB not supported' });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid PSB data' });
+    }
+  });
+
+  app.put("/api/psb/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      const validated = insertPSBSchema.partial().parse(req.body);
+      if ('updatePSB' in storage) {
+        const psb = await (storage as any).updatePSB(id, validated);
+        if (!psb) {
+          return res.status(404).json({ error: "PSB not found" });
+        }
+        res.json(psb);
+      } else {
+        res.status(400).json({ error: 'PSB not supported' });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: 'Invalid PSB data' });
+    }
+  });
+
+  app.delete("/api/psb/:id", requireAuth, async (req, res) => {
+    try {
+      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
+      if ('deletePSB' in storage) {
+        const success = await (storage as any).deletePSB(id);
+        res.json({ success });
+      } else {
+        res.json({ success: false });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to delete PSB' });
     }
   });
 
@@ -151,61 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/packages", requireAuth, async (req, res) => {
-    try {
-      const packages = await storage.getAllPackages();
-      res.json(packages);
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch packages' });
-    }
-  });
 
-  app.get("/api/packages/:id", requireAuth, async (req, res) => {
-    try {
-      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
-      const pkg = await storage.getPackage(id);
-      if (!pkg) {
-        return res.status(404).json({ error: "Package not found" });
-      }
-      res.json(pkg);
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch package' });
-    }
-  });
-
-  app.post("/api/packages", requireAuth, async (req, res) => {
-    try {
-      const validated = insertPackageSchema.parse(req.body);
-      const pkg = await storage.createPackage(validated);
-      res.json(pkg);
-    } catch (error: any) {
-      res.status(400).json({ error: 'Invalid package data' });
-    }
-  });
-
-  app.put("/api/packages/:id", requireAuth, async (req, res) => {
-    try {
-      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
-      const validated = insertPackageSchema.partial().parse(req.body);
-      const pkg = await storage.updatePackage(id, validated);
-      if (!pkg) {
-        return res.status(404).json({ error: "Package not found" });
-      }
-      res.json(pkg);
-    } catch (error: any) {
-      res.status(400).json({ error: 'Invalid package data' });
-    }
-  });
-
-  app.delete("/api/packages/:id", requireAuth, async (req, res) => {
-    try {
-      const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '');
-      const success = await storage.deletePackage(id);
-      res.json({ success });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete package' });
-    }
-  });
 
   app.get("/api/payments", requireAuth, async (req, res) => {
     try {

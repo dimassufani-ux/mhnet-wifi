@@ -11,19 +11,12 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getCustomer(id: string): Promise<Customer | undefined>;
   getAllCustomers(): Promise<Customer[]>;
-  getAllPSB(): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<boolean>;
 
-  getPackage(id: string): Promise<Package | undefined>;
-  getAllPackages(): Promise<Package[]>;
-  createPackage(pkg: InsertPackage): Promise<Package>;
-  updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;
-  deletePackage(id: string): Promise<boolean>;
-
-  getPayment(id: string): Promise<Payment | undefined>;
   getAllPayments(): Promise<Payment[]>;
+  getPayment(id: string): Promise<Payment | undefined>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
   deletePayment(id: string): Promise<boolean>;
@@ -31,12 +24,10 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private customers: Map<string, Customer>;
-  private packages: Map<string, Package>;
   private payments: Map<string, Payment>;
 
   constructor() {
     this.customers = new Map();
-    this.packages = new Map();
     this.payments = new Map();
   }
 
@@ -48,21 +39,15 @@ export class MemStorage implements IStorage {
     return Array.from(this.customers.values());
   }
 
-  async getAllPSB(): Promise<Customer[]> {
-    return Array.from(this.customers.values());
-  }
+
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const id = randomUUID();
     const customer: Customer = { 
       id,
+      paymentStatus: insertCustomer.paymentStatus || "Belum Lunas",
       name: insertCustomer.name,
-      phone: insertCustomer.phone,
-      address: insertCustomer.address,
-      packageId: insertCustomer.packageId,
-      status: insertCustomer.status || "active",
-      createdAt: new Date(),
-      installationDate: insertCustomer.installationDate || new Date()
+      nickname: insertCustomer.nickname || null,
     };
     this.customers.set(id, customer);
     return customer;
@@ -84,42 +69,7 @@ export class MemStorage implements IStorage {
     return this.customers.delete(id);
   }
 
-  async getPackage(id: string): Promise<Package | undefined> {
-    return this.packages.get(id);
-  }
 
-  async getAllPackages(): Promise<Package[]> {
-    return Array.from(this.packages.values());
-  }
-
-  async createPackage(insertPackage: InsertPackage): Promise<Package> {
-    const id = randomUUID();
-    const pkg: Package = { 
-      id,
-      name: insertPackage.name,
-      speed: insertPackage.speed,
-      price: insertPackage.price,
-      description: insertPackage.description || null
-    };
-    this.packages.set(id, pkg);
-    return pkg;
-  }
-
-  async updatePackage(id: string, updates: Partial<InsertPackage>): Promise<Package | undefined> {
-    try {
-      const pkg = this.packages.get(id);
-      if (!pkg) return undefined;
-      const updated = { ...pkg, ...updates };
-      this.packages.set(id, updated);
-      return updated;
-    } catch (error) {
-      return undefined;
-    }
-  }
-
-  async deletePackage(id: string): Promise<boolean> {
-    return this.packages.delete(id);
-  }
 
   async getPayment(id: string): Promise<Payment | undefined> {
     return this.payments.get(id);
